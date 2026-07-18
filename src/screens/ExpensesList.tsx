@@ -15,6 +15,8 @@ import {
 import type { Category, Expense } from "../../shared/schemas";
 import { parseToMinor } from "../../shared/money";
 import { fmtAmount, fmtDay, spentAtToInput, inputToSpentAt } from "../lib/format";
+import { CategoryField } from "../components/CategoryPicker";
+import ConfirmSheet from "../components/ConfirmSheet";
 
 const PAGE = 50;
 
@@ -236,6 +238,7 @@ function EditModal({
   const [note, setNote] = useState(expense.note);
   const [when, setWhen] = useState(spentAtToInput(expense.spentAt));
   const [err, setErr] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const done = () => {
     queryClient.invalidateQueries({ queryKey: ["expenses"] });
@@ -272,11 +275,13 @@ function EditModal({
           <input value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value)} />
         </label>
         <label>Category
-          <select value={categoryId} onChange={(e) => setCategoryId(Number(e.target.value))}>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
-            ))}
-          </select>
+          <CategoryField
+            categories={categories}
+            value={categoryId}
+            onChange={(id) => {
+              if (id !== null) setCategoryId(id);
+            }}
+          />
         </label>
         <label>Note
           <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
@@ -298,14 +303,20 @@ function EditModal({
           <button
             type="button"
             className="danger"
-            onClick={() => {
-              if (confirm("Delete this expense?")) deleteMutation.mutate();
-            }}
+            onClick={() => setConfirmDelete(true)}
             disabled={deleteMutation.isPending}
           >
             Delete
           </button>
         </div>
+        {confirmDelete && (
+          <ConfirmSheet
+            title="Delete this expense?"
+            message={`${fmtAmount(expense.amountMinor)} — this can't be undone.`}
+            onConfirm={() => deleteMutation.mutate()}
+            onClose={() => setConfirmDelete(false)}
+          />
+        )}
       </div>
     </div>
   );

@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCategories, getRecentCategoryIds, createExpense } from "../api";
-import type { Category } from "../../shared/schemas";
 import { parseToMinor } from "../../shared/money";
 import { CURRENCY, toDatetimeLocal, inputToSpentAt } from "../lib/format";
+import CategoryPicker from "../components/CategoryPicker";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"] as const;
 const STRIP_COUNT = 8;
@@ -139,59 +139,13 @@ export default function AddExpense() {
           categories={orderedCategories}
           selectedId={categoryId}
           onSelect={(id) => {
-            setCategoryId(id);
+            if (id !== null) setCategoryId(id);
             setPickerOpen(false);
             setError(null);
           }}
           onClose={() => setPickerOpen(false)}
         />
       )}
-    </div>
-  );
-}
-
-function CategoryPicker({
-  categories,
-  selectedId,
-  onSelect,
-  onClose,
-}: {
-  categories: Category[];
-  selectedId: number | null;
-  onSelect: (id: number) => void;
-  onClose: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
-  const filtered = q ? categories.filter((c) => c.name.toLowerCase().includes(q)) : categories;
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal picker-sheet" onClick={(e) => e.stopPropagation()}>
-        <h3>Category</h3>
-        <input
-          autoFocus
-          placeholder="Search…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <div className="picker-grid">
-          {filtered.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`picker-item ${selectedId === c.id ? "selected" : ""}`}
-              onClick={() => onSelect(c.id)}
-            >
-              <span className="icon" style={{ background: `${c.color}33` }}>
-                {c.icon}
-              </span>
-              <span className="name">{c.name}</span>
-            </button>
-          ))}
-          {filtered.length === 0 && <p className="muted">No match.</p>}
-        </div>
-      </div>
     </div>
   );
 }

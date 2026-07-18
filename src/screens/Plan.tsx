@@ -14,6 +14,8 @@ import type { Category, RecurringRule } from "../../shared/schemas";
 import { projectOccurrences } from "../../shared/recurrence";
 import { parseToMinor } from "../../shared/money";
 import { fmtAmount } from "../lib/format";
+import { CategoryField } from "../components/CategoryPicker";
+import ConfirmSheet from "../components/ConfirmSheet";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const todayISO = () => {
@@ -56,6 +58,7 @@ function BudgetsSection({
   const budgetsQuery = useQuery({ queryKey: ["budgets"], queryFn: getBudgets });
   const [adding, setAdding] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["budgets"] });
 
   const deleteMutation = useMutation({
@@ -104,9 +107,7 @@ function BudgetsSection({
               <button
                 type="button"
                 className="danger small-btn"
-                onClick={() => {
-                  if (confirm("Delete this budget?")) deleteMutation.mutate(b.id);
-                }}
+                onClick={() => setConfirmId(b.id)}
               >
                 Delete
               </button>
@@ -141,12 +142,20 @@ function BudgetsSection({
           </div>
         );
       })}
+      {confirmId !== null && (
+        <ConfirmSheet
+          title="Delete this budget?"
+          message="Only the budget is removed — no expenses are touched."
+          onConfirm={() => deleteMutation.mutate(confirmId)}
+          onClose={() => setConfirmId(null)}
+        />
+      )}
     </>
   );
 }
 
 function BudgetForm({ cats, onDone }: { cats: Category[]; onDone: () => void }) {
-  const [categoryId, setCategoryId] = useState<string>("overall");
+  const [categoryId, setCategoryId] = useState<number | null>(null); // null = overall
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
   const [err, setErr] = useState<string | null>(null);
@@ -162,7 +171,7 @@ function BudgetForm({ cats, onDone }: { cats: Category[]; onDone: () => void }) 
     const minor = parseToMinor(amount);
     if (minor === null || minor <= 0) return setErr("Amount must be a positive number");
     createMutation.mutate({
-      categoryId: categoryId === "overall" ? null : Number(categoryId),
+      categoryId,
       amountMinor: minor,
       period,
     });
@@ -170,14 +179,7 @@ function BudgetForm({ cats, onDone }: { cats: Category[]; onDone: () => void }) 
 
   return (
     <form className="card plan-form" onSubmit={submit}>
-      <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-        <option value="overall">🌐 Overall (all spending)</option>
-        {cats.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.icon} {c.name}
-          </option>
-        ))}
-      </select>
+      <CategoryField categories={cats} value={categoryId} allowOverall onChange={setCategoryId} />
       <div className="row">
         <input
           placeholder="Amount (RM)"
@@ -212,6 +214,7 @@ function RecurringSection({
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<RecurringRule | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [confirmRuleId, setConfirmRuleId] = useState<number | null>(null);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["recurring"] });
@@ -311,10 +314,7 @@ function RecurringSection({
               <button
                 type="button"
                 className="danger small-btn"
-                onClick={() => {
-                  if (confirm("Delete this rule? Already-logged expenses are kept."))
-                    deleteMutation.mutate(r.id);
-                }}
+                onClick={() => setConfirmRuleId(r.id)}
               >
                 ✕
               </button>
@@ -322,6 +322,15 @@ function RecurringSection({
           );
         })}
       </ul>
+
+      {confirmRuleId !== null && (
+        <ConfirmSheet
+          title="Delete this rule?"
+          message="Already-logged expenses are kept."
+          onConfirm={() => deleteMutation.mutate(confirmRuleId)}
+          onClose={() => setConfirmRuleId(null)}
+        />
+      )}
 
       {upcoming.length > 0 && (
         <div className="card" style={{ marginTop: "0.75rem" }}>
@@ -354,7 +363,7 @@ function RecurringForm({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const [categoryId, setCategoryId] = useState(String(rule?.categoryId ?? cats[0]?.id ?? ""));
+  const [categoryId, setCategoryId] = useState<number | null>(rule?.categoryId ?? cats[0]?.id ?? null);
   const [amount, setAmount] = useState(rule ? String(rule.amountMinor / 100) : "");
   const [note, setNote] = useState(rule?.note ?? "");
   const [frequency, setFrequency] = useState<"weekly" | "monthly" | "yearly">(
@@ -369,8 +378,9 @@ function RecurringForm({
     mutationFn: () => {
       const minor = parseToMinor(amount);
       if (minor === null || minor <= 0) throw new Error("Amount must be a positive number");
+      if (categoryId === null) throw new Error("Pick a category");
       const payload = {
-        categoryId: Number(categoryId),
+        categoryId,
         amountMinor: minor,
         note: note.trim(),
         frequency,
@@ -392,13 +402,7 @@ function RecurringForm({
         saveMutation.mutate();
       }}
     >
-      <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-        {cats.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.icon} {c.name}
-          </option>
-        ))}
-      </select>
+      <CategoryField categories={cats} value={categoryId} onChange={setCategoryId} />
       <div className="row">
         <input
           placeholder="Amount (RM)"

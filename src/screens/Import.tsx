@@ -12,6 +12,7 @@ import { getCategories } from "../api";
 import type { ImportPreviewResult, ImportCommitResult } from "../../shared/schemas";
 import { fmtAmount } from "../lib/format";
 import Categories from "./Categories";
+import ConfirmSheet from "../components/ConfirmSheet";
 
 type Mapping = Record<string, "create" | number>;
 type Segment = "backups" | "import" | "categories";
@@ -80,6 +81,7 @@ export default function Import() {
   const batchesQuery = useQuery({ queryKey: ["import-batches"], queryFn: getImportBatches });
 
   const [seg, setSeg] = useState<Segment>("backups");
+  const [confirmBatch, setConfirmBatch] = useState<{ id: number; count: number } | null>(null);
   const [csv, setCsv] = useState<string | null>(null);
   const [filename, setFilename] = useState("");
   const [preview, setPreview] = useState<ImportPreviewResult | null>(null);
@@ -303,10 +305,7 @@ export default function Import() {
               type="button"
               className="danger"
               disabled={rollbackMutation.isPending}
-              onClick={() => {
-                if (confirm(`Roll back batch #${b.id}? This deletes its ${b.expenseCount} expenses.`))
-                  rollbackMutation.mutate(b.id);
-              }}
+              onClick={() => setConfirmBatch({ id: b.id, count: b.expenseCount })}
             >
               Roll back
             </button>
@@ -314,6 +313,16 @@ export default function Import() {
         ))}
       </ul>
         </>
+      )}
+
+      {confirmBatch && (
+        <ConfirmSheet
+          title={`Roll back batch #${confirmBatch.id}?`}
+          message={`This deletes its ${confirmBatch.count} expenses.`}
+          confirmLabel="Roll back"
+          onConfirm={() => rollbackMutation.mutate(confirmBatch.id)}
+          onClose={() => setConfirmBatch(null)}
+        />
       )}
     </div>
   );

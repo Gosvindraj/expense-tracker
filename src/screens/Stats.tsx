@@ -112,6 +112,95 @@ function bucketToRange(key: string, bucket: Bucket): { from: string; to: string 
   return { from: `${key}-01-01`, to: `${key}-12-31` };
 }
 
+const PRESET_LABELS: Record<string, string> = {
+  "this-month": "This month",
+  "last-month": "Last month",
+  "this-year": "This year",
+  "last-year": "Last year",
+  all: "All time",
+};
+
+function periodLabel(preset: string, customFrom: string, customTo: string): string {
+  if (PRESET_LABELS[preset]) return PRESET_LABELS[preset];
+  if (/^year-\d{4}$/.test(preset)) return preset.slice(5);
+  if (preset === "custom") {
+    if (customFrom || customTo) return `${customFrom || "…"} → ${customTo || "…"}`;
+    return "Custom range";
+  }
+  return "Period";
+}
+
+function PeriodSheet({
+  current,
+  years,
+  customFrom,
+  customTo,
+  onPick,
+  onApplyCustom,
+  onClose,
+}: {
+  current: string;
+  years: number[];
+  customFrom: string;
+  customTo: string;
+  onPick: (key: string) => void;
+  onApplyCustom: (from: string, to: string) => void;
+  onClose: () => void;
+}) {
+  const [from, setFrom] = useState(customFrom);
+  const [to, setTo] = useState(customTo);
+  const [customOpen, setCustomOpen] = useState(current === "custom");
+
+  const rows: [string, string][] = [
+    ["this-month", "This month"],
+    ["last-month", "Last month"],
+    ["this-year", "This year"],
+    ["last-year", "Last year"],
+    ["all", "All time"],
+    ...years.map((y) => [`year-${y}`, String(y)] as [string, string]),
+  ];
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal picker-sheet" onClick={(e) => e.stopPropagation()}>
+        <h3>Period</h3>
+        <div className="sheet-rows">
+          {rows.map(([key, label]) => (
+            <button key={key} type="button" className="sheet-row" onClick={() => onPick(key)}>
+              <span>{label}</span>
+              {current === key && <span className="check">✓</span>}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="sheet-row"
+            onClick={() => setCustomOpen((o) => !o)}
+          >
+            <span>Custom range</span>
+            {current === "custom" && !customOpen && <span className="check">✓</span>}
+          </button>
+          {customOpen && (
+            <div className="sheet-custom">
+              <div className="row">
+                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              </div>
+              <button
+                type="button"
+                className="primary"
+                disabled={!from && !to}
+                onClick={() => onApplyCustom(from, to)}
+              >
+                Apply
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------- main screen ----------
 
 export default function Stats({
@@ -124,6 +213,7 @@ export default function Stats({
   const [customTo, setCustomTo] = useState("");
   const [catFilter, setCatFilter] = useState<number[]>([]);
   const [catsOpen, setCatsOpen] = useState(false);
+  const [periodOpen, setPeriodOpen] = useState(false);
 
   const range =
     preset === "custom"
@@ -216,17 +306,12 @@ export default function Stats({
     <div className={`stats-screen ${stale ? "stale" : ""}`}>
       {/* ---- filter row ---- */}
       <div className="stats-filters">
-        <select value={preset} onChange={(e) => { setPreset(e.target.value); setBucketOverride(null); }}>
-          <option value="this-month">This month</option>
-          <option value="last-month">Last month</option>
-          <option value="this-year">This year</option>
-          <option value="last-year">Last year</option>
-          <option value="all">All time</option>
-          {years.map((y) => (
-            <option key={y} value={`year-${y}`}>{y}</option>
-          ))}
-          <option value="custom">Custom range…</option>
-        </select>
+        <button type="button" className="period-btn" onClick={() => setPeriodOpen(true)}>
+          <span>{periodLabel(preset, customFrom, customTo)}</span>
+          <svg viewBox="0 0 24 24" className="chev">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
         <button
           type="button"
           className={catFilter.length ? "cat-filter-btn on" : "cat-filter-btn"}
@@ -235,11 +320,26 @@ export default function Stats({
           {catFilter.length ? `${catFilter.length} categories` : "All categories"}
         </button>
       </div>
-      {preset === "custom" && (
-        <div className="row" style={{ marginBottom: "0.6rem" }}>
-          <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-          <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
-        </div>
+      {periodOpen && (
+        <PeriodSheet
+          current={preset}
+          years={years}
+          customFrom={customFrom}
+          customTo={customTo}
+          onPick={(key) => {
+            setPreset(key);
+            setBucketOverride(null);
+            setPeriodOpen(false);
+          }}
+          onApplyCustom={(f, t) => {
+            setCustomFrom(f);
+            setCustomTo(t);
+            setPreset("custom");
+            setBucketOverride(null);
+            setPeriodOpen(false);
+          }}
+          onClose={() => setPeriodOpen(false)}
+        />
       )}
       {catsOpen && (
         <div className="filter-cats" style={{ marginBottom: "0.75rem" }}>
@@ -630,34 +730,27 @@ function Compare({
             </div>
           </div>
 
-          <div className="table-scroll">
-          <table className="compare-table">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>{labelA}</th>
-                <th>{labelB}</th>
-                <th>Δ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.byCategory.slice(0, 8).map((r) => {
-                const cat = catById.get(r.categoryId);
-                const d = r.bMinor - r.aMinor;
-                return (
-                  <tr key={r.categoryId}>
-                    <td>{cat?.icon ?? "📦"} {cat?.name ?? "Unknown"}</td>
-                    <td>{fmtAmount(r.aMinor)}</td>
-                    <td>{fmtAmount(r.bMinor)}</td>
-                    <td className={d > 0 ? "up" : d < 0 ? "down" : ""}>
+          <div className="cmp-list">
+            {data.byCategory.slice(0, 8).map((r) => {
+              const cat = catById.get(r.categoryId);
+              const d = r.bMinor - r.aMinor;
+              return (
+                <div className="cmp-row" key={r.categoryId}>
+                  <div className="cmp-top">
+                    <span className="cmp-name">
+                      {cat?.icon ?? "📦"} {cat?.name ?? "Unknown"}
+                    </span>
+                    <span className={`cmp-delta ${d > 0 ? "up" : d < 0 ? "down" : ""}`}>
                       {d > 0 ? "+" : d < 0 ? "−" : ""}
                       {fmtAmount(Math.abs(d))}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </span>
+                  </div>
+                  <div className="cmp-sub">
+                    {labelA}: {fmtAmount(r.aMinor)} → {labelB}: {fmtAmount(r.bMinor)}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </>
       )}

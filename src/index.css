@@ -5,6 +5,11 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  scrollbar-width: none; /* app-like: no visible scrollbars anywhere */
+}
+
+*::-webkit-scrollbar {
+  display: none;
 }
 
 :root {
@@ -20,9 +25,10 @@
   --text-3: #5d6472;
 
   --accent: #7c6cf6;
-  --accent-soft: rgba(124, 108, 246, 0.16);
+  --accent-soft: rgba(124, 108, 246, 0.14);
   --accent-hover: #978af8;
-  --grad: linear-gradient(135deg, #6a5cf5 0%, #9d54f0 100%);
+  /* flat by design — no gradients */
+  --grad: var(--accent);
 
   --green: #4ade80;
   --red: #f87171;
@@ -32,7 +38,7 @@
   --r-input: 14px;
   --r-chip: 999px;
 
-  --shadow-fab: 0 8px 24px rgba(124, 92, 245, 0.4);
+  --shadow-fab: 0 6px 18px rgba(124, 108, 246, 0.28);
 
   /* legacy aliases used by charts */
   --card: var(--surface);
@@ -439,11 +445,10 @@ button:disabled {
   padding: 0.95rem;
   font-size: 1.02rem;
   font-weight: 700;
-  background: var(--grad);
+  background: var(--accent);
   border: none;
   color: white;
   border-radius: 16px;
-  box-shadow: 0 6px 20px rgba(124, 92, 245, 0.25);
 }
 
 /* ============================================================
@@ -628,6 +633,76 @@ button:disabled {
   background: var(--accent-soft);
 }
 
+.period-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.period-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.period-btn .chev {
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  stroke: var(--text-3);
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sheet-rows {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 56vh;
+}
+
+.sheet-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0.35rem;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.sheet-row + .sheet-row,
+.sheet-row + .sheet-custom {
+  border-top: 1px solid var(--border);
+}
+
+.sheet-row:active {
+  background: var(--surface-2);
+  transform: none;
+}
+
+.sheet-row .check {
+  color: var(--accent-hover);
+  font-weight: 700;
+}
+
+.sheet-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.2rem 0.2rem;
+}
+
 .table-scroll {
   overflow-x: auto;
 }
@@ -645,9 +720,15 @@ button:disabled {
 
 .kpi-row .stat-tile:first-child {
   grid-column: 1 / -1;
-  background:
-    radial-gradient(120% 160% at 0% 0%, rgba(124, 92, 245, 0.22) 0%, transparent 55%),
-    var(--surface);
+  padding: 1rem 1.05rem;
+}
+
+.kpi-row .stat-tile:first-child .stat-delta {
+  align-self: flex-start;
+  margin-top: 0.3rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: var(--r-chip);
+  background: var(--surface-2);
 }
 
 .stat-tile {
@@ -836,41 +917,55 @@ button:disabled {
   letter-spacing: -0.01em !important;
 }
 
-.compare-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
+/* compare: stacked rows that always fit the screen width */
+.cmp-list {
+  display: flex;
+  flex-direction: column;
 }
 
-.compare-table th {
-  text-align: left;
-  color: var(--text-3);
-  font-weight: 550;
-  padding: 0.3rem 0.35rem;
-  border-bottom: 1px solid var(--border);
+.cmp-row {
+  padding: 0.55rem 0;
 }
 
-.compare-table td {
-  padding: 0.4rem 0.35rem;
-  border-bottom: 1px solid var(--border);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.cmp-row + .cmp-row {
+  border-top: 1px solid var(--border);
 }
 
-.compare-table tr:last-child td {
-  border-bottom: none;
+.cmp-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 0.88rem;
 }
 
-.compare-table td:first-child {
-  max-width: 9rem;
+.cmp-name {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-variant-numeric: normal;
+  white-space: nowrap;
+  font-weight: 500;
+  min-width: 0;
 }
 
-.compare-table th:not(:first-child),
-.compare-table td:not(:first-child) {
-  text-align: right;
+.cmp-delta {
+  white-space: nowrap;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmp-delta.up {
+  color: var(--red);
+}
+
+.cmp-delta.down {
+  color: var(--green);
+}
+
+.cmp-sub {
+  font-size: 0.76rem;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.1rem;
 }
 
 /* ============================================================
@@ -958,17 +1053,17 @@ button:disabled {
 .budget-fill {
   height: 100%;
   border-radius: 5px;
-  background: var(--grad);
+  background: var(--accent);
   min-width: 2px;
   transition: width 0.25s;
 }
 
 .budget-fill.close {
-  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  background: var(--amber);
 }
 
 .budget-fill.over {
-  background: linear-gradient(135deg, #ef4444, #f87171);
+  background: var(--red);
 }
 
 .budget-history {
@@ -1308,4 +1403,49 @@ button:disabled {
 .picker-item.selected {
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+
+/* input-look button that opens the category sheet */
+.cat-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--r-input);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  text-align: left;
+  font-weight: 500;
+}
+
+.cat-field-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-field .chev {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  stroke: var(--text-3);
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* confirm sheet */
+.confirm-sheet .confirm-msg {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+button.danger.solid {
+  background: var(--red);
+  border: none;
+  color: #17181c;
+  font-weight: 700;
 }

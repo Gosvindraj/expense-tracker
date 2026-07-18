@@ -2,11 +2,13 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCategories, createCategory, updateCategory, deleteCategory } from "../api";
 import type { Category } from "../../shared/schemas";
+import ConfirmSheet from "../components/ConfirmSheet";
 
 export default function Categories() {
   const queryClient = useQueryClient();
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: getCategories });
   const [editing, setEditing] = useState<Category | null>(null);
+  const [confirmCat, setConfirmCat] = useState<Category | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["categories"] });
@@ -66,10 +68,7 @@ export default function Categories() {
                 <button
                   type="button"
                   className="danger"
-                  onClick={() => {
-                    if (confirm(`Delete "${c.name}"? Only possible if it has no expenses.`))
-                      deleteMutation.mutate(c.id);
-                  }}
+                  onClick={() => setConfirmCat(c)}
                 >
                   Delete
                 </button>
@@ -77,6 +76,15 @@ export default function Categories() {
             ))}
           </ul>
         </>
+      )}
+
+      {confirmCat && (
+        <ConfirmSheet
+          title={`Delete "${confirmCat.name}"?`}
+          message="Only possible if it has no expenses."
+          onConfirm={() => deleteMutation.mutate(confirmCat.id)}
+          onClose={() => setConfirmCat(null)}
+        />
       )}
 
       {editing && (
