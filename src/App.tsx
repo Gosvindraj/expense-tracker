@@ -13,7 +13,7 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: "list", icon: "📋", label: "Expenses" },
   { id: "stats", icon: "📊", label: "Stats" },
   { id: "categories", icon: "🏷️", label: "Categories" },
-  { id: "import", icon: "📥", label: "Import" },
+  { id: "import", icon: "📥", label: "Data" },
 ];
 
 const isTab = (s: string): s is Tab => TABS.some((t) => t.id === s);

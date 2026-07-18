@@ -13,12 +13,7 @@ import {
   type TimeseriesPoint,
   type CompareResult,
 } from "../shared/schemas";
-
-type Env = {
-  Bindings: {
-    DB: D1Database;
-  };
-};
+import type { Env } from "./env";
 
 function filtersToWhere(f: StatsFilter) {
   const conds = [];

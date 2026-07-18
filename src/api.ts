@@ -126,3 +126,17 @@ export const importCommit = (input: ImportCommitRequest) =>
 export const getImportBatches = () => api<ImportBatch[]>("/api/import/batches");
 export const deleteImportBatch = (id: number) =>
   api<{ ok: true }>(`/api/import/batches/${id}`, { method: "DELETE" });
+
+// ---------- backups ----------
+
+export interface BackupObject {
+  key: string;
+  size: number;
+  uploaded: string;
+}
+
+export const getBackups = () => api<BackupObject[]>("/api/backups");
+export const runBackupNow = () =>
+  api<{ key: string; bytes: number; expenses: number; kept: number }>("/api/backups/run", {
+    method: "POST",
+  });

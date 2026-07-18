@@ -5,12 +5,72 @@ import {
   importCommit,
   getImportBatches,
   deleteImportBatch,
+  getBackups,
+  runBackupNow,
 } from "../api";
 import { getCategories } from "../api";
 import type { ImportPreviewResult, ImportCommitResult } from "../../shared/schemas";
 import { fmtAmount } from "../lib/format";
 
 type Mapping = Record<string, "create" | number>;
+
+function BackupsCard() {
+  const queryClient = useQueryClient();
+  const backupsQuery = useQuery({ queryKey: ["backups"], queryFn: getBackups });
+  const [err, setErr] = useState<string | null>(null);
+
+  const runMutation = useMutation({
+    mutationFn: runBackupNow,
+    onSuccess: () => {
+      setErr(null);
+      queryClient.invalidateQueries({ queryKey: ["backups"] });
+    },
+    onError: (e: Error) => setErr(e.message),
+  });
+
+  const backups = backupsQuery.data ?? [];
+  const latest = backups[0];
+  const ageHours = latest
+    ? (Date.now() - new Date(latest.uploaded).getTime()) / 3600000
+    : null;
+  const staleWarning = latest === undefined || (ageHours !== null && ageHours > 48);
+
+  return (
+    <div className={`card ${staleWarning ? "warn" : ""}`}>
+      <h3>Backups</h3>
+      {backupsQuery.isLoading ? (
+        <p className="muted">Loading…</p>
+      ) : latest ? (
+        <p className="backup-status">
+          Last snapshot: <strong>{latest.key.replace("snapshots/", "").replace(".json", "")}</strong>{" "}
+          ({(latest.size / 1024).toFixed(0)} KB) · {backups.length} kept
+          {staleWarning && <strong className="error"> — more than 48 h old!</strong>}
+        </p>
+      ) : (
+        <p className="backup-status error">
+          No snapshots yet — nightly backup runs at 04:00 MYT, or run one now.
+        </p>
+      )}
+      {err && <p className="error">{err}</p>}
+      <div className="row">
+        <button
+          type="button"
+          className="primary"
+          onClick={() => runMutation.mutate()}
+          disabled={runMutation.isPending}
+        >
+          {runMutation.isPending ? "Backing up…" : "Back up now"}
+        </button>
+        <a className="btn-link" href="/api/export?format=json" download>
+          Export JSON
+        </a>
+        <a className="btn-link" href="/api/export?format=csv" download>
+          Export CSV
+        </a>
+      </div>
+    </div>
+  );
+}
 
 export default function Import() {
   const queryClient = useQueryClient();
@@ -80,6 +140,8 @@ export default function Import() {
 
   return (
     <div className="import-screen">
+      <BackupsCard />
+
       <h2>Import</h2>
       <p className="muted">
         Wallet CSV export (semicolon-separated). Upload, review the mapping, then import.

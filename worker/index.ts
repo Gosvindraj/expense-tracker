@@ -5,6 +5,8 @@ import { and, asc, count, desc, eq, gte, inArray, lte, like, sql, sum } from "dr
 import { categories, expenses } from "./db/schema";
 import importApp from "./import";
 import statsApp from "./stats";
+import backupApp, { runBackup } from "./backup";
+import type { Env } from "./env";
 import {
   categoryCreateSchema,
   categoryUpdateSchema,
@@ -14,12 +16,6 @@ import {
   type ExpenseListResult,
 } from "../shared/schemas";
 
-type Env = {
-  Bindings: {
-    DB: D1Database;
-  };
-};
-
 const nowStamp = () => new Date().toISOString().slice(0, 19).replace("T", " ");
 
 const app = new Hono<Env>().basePath("/api");
@@ -28,6 +24,7 @@ app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/import", importApp);
 app.route("/stats", statsApp);
+app.route("/", backupApp); // /api/backups, /api/export
 
 // ---------- categories ----------
 
@@ -152,4 +149,10 @@ app.delete("/expenses/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  // nightly cron (see wrangler.jsonc triggers): snapshot all tables to R2
+  scheduled(_event, env, ctx) {
+    ctx.waitUntil(runBackup(env));
+  },
+} satisfies ExportedHandler<Env["Bindings"]>;

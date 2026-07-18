@@ -27,6 +27,23 @@ See [PLAN.md](PLAN.md) for the full build plan and [plan/](plan/) for per-phase 
 | `npm run db:migrate:local` | Apply migrations to the local dev D1 (`.wrangler/state`) |
 | `npm run db:migrate:remote` | Apply migrations to the production D1 |
 
+## Backups & restore
+
+- **Nightly cron** (`0 20 * * *` UTC = 04:00 MYT) snapshots all tables to R2
+  (`expense-tracker-backups`, key `snapshots/YYYY-MM-DD.json`, last 30 kept).
+- **Manual**: Data tab → "Back up now"; the card warns when the latest snapshot
+  is > 48 h old. One-click **Export JSON / CSV** lives there too.
+- **Restore** (tested 2026-07-18): grab a snapshot —
+  `npx wrangler r2 object get expense-tracker-backups/snapshots/<date>.json --file snap.json`
+  (or use an Export JSON download), make sure migrations are applied, then:
+
+  ```
+  node scripts/restore-snapshot.mjs snap.json --local   # or --remote
+  ```
+
+  This wipes categories/import_batches/expenses and re-inserts everything from
+  the snapshot.
+
 ## Schema change workflow
 
 1. Edit `worker/db/schema.ts`

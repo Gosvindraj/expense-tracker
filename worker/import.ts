@@ -10,12 +10,7 @@ import {
   type ImportCommitResult,
   type ImportBatch,
 } from "../shared/schemas";
-
-type Env = {
-  Bindings: {
-    DB: D1Database;
-  };
-};
+import type { Env } from "./env";
 
 // ---------- Wallet CSV parsing ----------
 

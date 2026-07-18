@@ -679,6 +679,29 @@ button:disabled {
   background: #f0fdf4;
 }
 
+.card.warn {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.backup-status {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.btn-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.55rem 0.9rem;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
 .preview-stats {
   list-style: none;
   margin: 0;
