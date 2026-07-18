@@ -10,7 +10,9 @@
     "deploy": "npm run check && npm run build && wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply expense-tracker-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply expense-tracker-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply expense-tracker-db --remote",
+    "db:seed:local": "wrangler d1 execute expense-tracker-db --local --file seed/categories.sql",
+    "db:seed:remote": "wrangler d1 execute expense-tracker-db --remote --file seed/categories.sql"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.0",

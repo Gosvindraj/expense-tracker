@@ -15,8 +15,8 @@ transactions (rent, subscriptions) logged automatically.
 - [ ] Budget history: how past periods closed (under/over and by how much)
 
 ### Recurring
-- [ ] Migration: `recurring_rules` (template JSON: account, category, amount, payee,
-      note; frequency weekly|monthly|yearly, interval, day_of_month, next_due_on,
+- [ ] Migration: `recurring_rules` (template JSON: category, amount, note;
+      frequency weekly|monthly|yearly, interval, day_of_month, next_due_on,
       end_on, active)
 - [ ] CRUD API for rules
 - [ ] **Daily Cloudflare Cron Trigger** that materializes due rules into real

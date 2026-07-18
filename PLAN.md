@@ -14,6 +14,7 @@ features Wallet paywalled (unrestricted filtering & statistics) free forever.
 | Currency | Single currency, amounts stored as integer cents |
 | Budget | Cloudflare free tier only ($0/month) |
 | Migration | One-time Wallet CSV import via a reusable in-app import tool |
+| Scope (confirmed 2026-07-18) | **Expenses only** — no income, no accounts, no transfers. "Just money leaving me in general." The real export confirmed: 1 account, 0 income rows, 0 transfers, 0 labels. |
 
 ## Stack
 
@@ -45,46 +46,44 @@ drizzle/  generated SQL migrations
 
 ## Data model
 
+Simplified to expenses-only (scope confirmed against the real export):
+
 ```sql
-accounts        (id, name, icon, color, starting_balance_minor, archived, sort_order)
 categories      (id, name, parent_id NULL,          -- subcategories via self-reference
-                 icon, color, kind 'expense'|'income', archived)
-labels          (id, name, color)
-transactions    (id, account_id, category_id NULL,
-                 type 'expense'|'income'|'transfer',
-                 amount_minor,                       -- always positive; type gives sign
-                 transfer_account_id NULL,           -- counterpart for transfers
-                 payee, note,
-                 occurred_on,                        -- date, indexed
+                 icon, color, archived, sort_order)
+expenses        (id, category_id,
+                 amount_minor,                       -- positive INTEGER cents
+                 note,
+                 spent_at,                           -- 'YYYY-MM-DD HH:MM:SS', indexed
                  created_at, updated_at,
                  import_batch_id NULL)               -- traceability for imported rows
-transaction_labels (transaction_id, label_id)
 budgets         (id, category_id NULL,               -- NULL = overall budget
                  amount_minor, period 'monthly'|'yearly', start_month, active)
-recurring_rules (id, template JSON,                  -- account, category, amount, payee…
+recurring_rules (id, template JSON,                  -- category, amount, note
                  frequency 'weekly'|'monthly'|'yearly', interval, day_of_month,
                  next_due_on, end_on NULL, active)
 import_batches  (id, source, filename, row_count, imported_at)
 ```
 
-Indexes on `transactions(occurred_on)`, `(account_id)`, `(category_id)`.
+Indexes on `expenses(spent_at)`, `(category_id)`.
 Money is always `INTEGER` minor units (cents) — never floats.
+Dropped from the original design: accounts, transfers, income, labels, payee
+(3.7 years of real data used none of them).
 
 ## API surface
 
 ```
-CRUD:    /api/accounts  /api/categories  /api/labels
-         /api/transactions       (list takes the full filter set:
-                                  date range, accounts[], categories[] incl. subcats,
-                                  labels[], type, payee/note text search,
-                                  amount min/max, pagination)
-Stats:   /api/stats/summary      totals + net for any range
+CRUD:    /api/categories
+         /api/expenses           (list takes the full filter set:
+                                  date range, categories[] incl. subcats,
+                                  note text search, amount min/max, pagination;
+                                  returns items + count + sum of the filtered set)
+Stats:   /api/stats/summary      total + count for any range
          /api/stats/by-category  grouped, any range, drill into subcategories
          /api/stats/timeseries   daily/weekly/monthly/yearly buckets, any range
          /api/stats/compare      two arbitrary periods side by side
-         /api/stats/balances     per-account running balances
 Budgets: /api/budgets (+ computed spent/remaining for current period)
-Recur:   /api/recurring (+ cron endpoint that materializes due transactions)
+Recur:   /api/recurring (+ cron endpoint that materializes due expenses)
 Import:  /api/import/preview     parse uploaded CSV, return proposed mapping
          /api/import/commit      execute with chosen mappings, dedupe, batch record
 Export:  /api/export             full CSV/JSON dump of everything, one click
@@ -95,15 +94,15 @@ parameter. That's the whole point of this project.
 
 ## Screens
 
-1. **Add transaction** — most-used screen, optimize ruthlessly. Big numeric keypad,
-   recent categories first, defaults to today + last-used account. Target: < 5 s to log.
-2. **Transactions list** — infinite scroll, full filter panel, running totals, tap to edit.
+1. **Add expense** — most-used screen, optimize ruthlessly. Big numeric keypad,
+   recent categories first, defaults to now. Target: < 5 s to log.
+2. **Expenses list** — infinite scroll, full filter panel, running total, tap to edit.
 3. **Dashboard / stats** — period picker (this month / last month / any year / custom /
-   all time), category pie with drill-down, spending-over-time, income vs. expense,
+   all time), category pie with drill-down, spending-over-time,
    period-vs-period comparison.
 4. **Budgets** — per-category progress bars, over/under indicators.
 5. **Recurring** — upcoming planned payments, edit rules.
-6. **Settings** — accounts/categories/labels management, import, export, backup status.
+6. **Settings** — categories management, import, export, backup status.
 
 ## Phases
 

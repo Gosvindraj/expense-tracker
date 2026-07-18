@@ -3,42 +3,42 @@
 **Goal:** daily expense tracking works end to end. **At the end of this phase I can
 stop using Wallet for new entries.**
 
-**Estimated effort:** ~1–2 weeks of evenings.
+> Scope simplified 2026-07-18 after confirming against the real export:
+> **expenses only** — no accounts, no income, no transfers, no labels, no payee.
 
 ## Tasks
 
 ### Schema (full)
-- [ ] Migrations for: `accounts`, `categories` (self-referencing `parent_id`),
-      `labels`, `transactions`, `transaction_labels`, `import_batches`
+- [ ] Migrations for: `categories` (self-referencing `parent_id`), `expenses`,
+      `import_batches`; drop the Phase-1 `accounts` table
       (budgets/recurring wait for Phase 5)
-- [ ] Indexes: `transactions(occurred_on)`, `(account_id)`, `(category_id)`
-- [ ] Amounts as `INTEGER` minor units throughout; shared money helpers in `shared/`
+- [ ] Indexes: `expenses(spent_at)`, `(category_id)`
+- [ ] Amounts as positive `INTEGER` minor units; shared money helpers in `shared/`
 
 ### API
-- [ ] CRUD for accounts, categories (with subcategory nesting), labels
-- [ ] CRUD for transactions incl. transfers (`transfer_account_id` counterpart logic)
-- [ ] `GET /api/transactions` with the full filter set: date range, accounts[],
-      categories[] (including "category + all its subcategories"), labels[], type,
-      payee/note text search, amount min/max, pagination
+- [ ] CRUD for categories (archive instead of delete when in use)
+- [ ] CRUD for expenses
+- [ ] `GET /api/expenses` with the full filter set: date range, categories[],
+      note text search, amount min/max, pagination — returns items + total count
+      + **sum of the filtered set**
+- [ ] Recently-used categories endpoint (drives the add-screen ordering)
 - [ ] Zod schemas in `shared/` for every request/response
 
 ### UI
-- [ ] **Add transaction screen** — the most-used screen, optimize ruthlessly:
+- [ ] **Add expense screen** — the most-used screen, optimize ruthlessly:
       - [ ] big numeric keypad
       - [ ] recently-used categories surfaced first
-      - [ ] defaults: today's date + last-used account
-      - [ ] expense / income / transfer toggle
+      - [ ] defaults to now (date editable)
       - [ ] target: < 5 seconds to log a typical expense
-- [ ] **Transactions list** — infinite scroll, filter panel (all API filters),
-      running totals for the filtered set, tap to edit/delete
-- [ ] **Settings: manage accounts / categories / labels** (create, edit, archive,
-      reorder, icon + color pickers)
+- [ ] **Expenses list** — newest first, load-more, filter panel (all API filters),
+      running total for the filtered set, tap to edit/delete
+- [ ] **Categories screen** — create, edit, archive, icon + color
 - [ ] Optimistic updates via TanStack Query so entry feels instant
 - [ ] Mobile-first layout — this will live on a phone
 
 ### Seed
-- [ ] Manually create my real accounts and category tree (mirroring Wallet's names —
-      this makes Phase 3 auto-mapping trivial)
+- [ ] Seed the 33 categories from the real Wallet export (exact names, so Phase 3
+      auto-mapping is trivial), with icons + colors
 
 ## Done when
 
