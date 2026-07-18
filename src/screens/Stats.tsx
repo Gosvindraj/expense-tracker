@@ -648,6 +648,7 @@ function Compare({
   const [monthB, setMonthB] = useState(THIS_MONTH);
   const [yearA, setYearA] = useState(String(THIS_YEAR - 1));
   const [yearB, setYearB] = useState(String(THIS_YEAR));
+  const [showAll, setShowAll] = useState(false);
 
   const rangeA =
     mode === "month" ? monthRange(monthA) : { from: `${yearA}-01-01`, to: `${yearA}-12-31` };
@@ -739,7 +740,7 @@ function Compare({
           </div>
 
           <div className="cmp-list">
-            {data.byCategory.slice(0, 8).map((r) => {
+            {(showAll ? data.byCategory : data.byCategory.slice(0, 8)).map((r) => {
               const cat = catById.get(r.categoryId);
               const d = r.bMinor - r.aMinor;
               return (
@@ -760,6 +761,13 @@ function Compare({
               );
             })}
           </div>
+          {data.byCategory.length > 8 && (
+            <button type="button" className="load-more" onClick={() => setShowAll((s) => !s)}>
+              {showAll
+                ? "Show biggest movers"
+                : `Show all ${data.byCategory.length} categories`}
+            </button>
+          )}
         </>
       )}
     </div>
