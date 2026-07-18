@@ -28,9 +28,9 @@ never be lost or held hostage again.
 - [x] **Restore tested**: `scripts/restore-snapshot.mjs <snap.json> --local|--remote`
       — polluted the local DB, restored from snapshot, verified exact return to
       1,505 rows / RM XX,XXX.XX; runbook in README
-- [ ] Verify first production snapshot exists (tap "Back up now" once, or check
-      after tonight's cron): 
-      `npx wrangler r2 object get expense-tracker-backups/snapshots/<today>.json --file NUL`
+- [x] First production snapshot verified 2026-07-18: user tapped "Back up now",
+      object pulled from R2 via CLI — 33 categories, 1,505 expenses,
+      RM XX,XXX.XX reconciled
 
 ### Wrap-up
 - [ ] (Optional) custom domain instead of `*.workers.dev`
