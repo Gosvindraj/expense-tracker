@@ -303,9 +303,10 @@ function RecurringSection({
               <button
                 type="button"
                 className="small-btn"
+                title={r.active ? "Pause" : "Resume"}
                 onClick={() => toggleMutation.mutate({ id: r.id, active: !r.active })}
               >
-                {r.active ? "Pause" : "Resume"}
+                {r.active ? "⏸" : "▶"}
               </button>
               <button
                 type="button"

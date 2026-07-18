@@ -14,7 +14,7 @@ export default defineConfig({
       useCredentials: true,
       // cache the app shell only — the API is online-only by design
       workbox: {
-        globPatterns: ["**/*.{js,css,html,png}"],
+        globPatterns: ["**/*.{js,css,html,png,woff2}"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//, /^\/cdn-cgi\//],
       },
@@ -24,8 +24,8 @@ export default defineConfig({
         description: "Personal expense tracker",
         display: "standalone",
         start_url: "/",
-        theme_color: "#4f6df5",
-        background_color: "#f5f6f8",
+        theme_color: "#0d0e12",
+        background_color: "#0d0e12",
         icons: [
           { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "/icon-512.png", sizes: "512x512", type: "image/png" },

@@ -30,7 +30,6 @@ export default function Categories() {
 
   return (
     <div className="cats-screen">
-      <h2>Categories</h2>
       <CreateForm onDone={invalidate} />
       {err && <p className="error">{err}</p>}
 

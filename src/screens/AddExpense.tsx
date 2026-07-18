@@ -76,21 +76,13 @@ export default function AddExpense() {
         <span className="value">{amount || "0"}</span>
       </div>
 
-      <div className="keypad">
-        {KEYS.map((k) => (
-          <button key={k} className="key" onClick={() => press(k)} type="button">
-            {k}
-          </button>
-        ))}
-      </div>
-
       <div className="cat-grid">
         {orderedCategories.map((c) => (
           <button
             key={c.id}
             type="button"
             className={`cat-chip ${categoryId === c.id ? "selected" : ""}`}
-            style={categoryId === c.id ? { borderColor: c.color, background: `${c.color}22` } : undefined}
+            style={categoryId === c.id ? { borderColor: c.color, background: `${c.color}2e` } : undefined}
             onClick={() => setCategoryId(c.id)}
           >
             <span>{c.icon}</span> {c.name}
@@ -98,7 +90,7 @@ export default function AddExpense() {
         ))}
       </div>
 
-      <div className="add-meta">
+      <div className="add-meta row">
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -109,6 +101,14 @@ export default function AddExpense() {
       </div>
 
       {error && <p className="error">{error}</p>}
+
+      <div className="keypad">
+        {KEYS.map((k) => (
+          <button key={k} className="key" onClick={() => press(k)} type="button">
+            {k}
+          </button>
+        ))}
+      </div>
 
       <button className="save-btn" type="button" onClick={save} disabled={saveMutation.isPending}>
         {saveMutation.isPending ? "Saving…" : savedFlash ? "Saved ✓" : "Save expense"}

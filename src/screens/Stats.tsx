@@ -424,7 +424,7 @@ function ColumnChart({
                 {p.sumMinor > 0 && (
                   <path
                     d={roundedBar(x, yTop, barW, y(0))}
-                    fill={hover === i ? "#7c93f8" : "var(--accent)"}
+                    fill={hover === i ? "var(--accent-hover)" : "var(--accent)"}
                   />
                 )}
                 {/* full-height hit target, wider than the mark */}

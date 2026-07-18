@@ -11,8 +11,10 @@ import {
 import { getCategories } from "../api";
 import type { ImportPreviewResult, ImportCommitResult } from "../../shared/schemas";
 import { fmtAmount } from "../lib/format";
+import Categories from "./Categories";
 
 type Mapping = Record<string, "create" | number>;
+type Segment = "backups" | "import" | "categories";
 
 function BackupsCard() {
   const queryClient = useQueryClient();
@@ -77,6 +79,7 @@ export default function Import() {
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: getCategories });
   const batchesQuery = useQuery({ queryKey: ["import-batches"], queryFn: getImportBatches });
 
+  const [seg, setSeg] = useState<Segment>("backups");
   const [csv, setCsv] = useState<string | null>(null);
   const [filename, setFilename] = useState("");
   const [preview, setPreview] = useState<ImportPreviewResult | null>(null);
@@ -140,9 +143,31 @@ export default function Import() {
 
   return (
     <div className="import-screen">
-      <BackupsCard />
+      <h2>Data</h2>
+      <div className="segmented">
+        {(
+          [
+            ["backups", "Backups"],
+            ["import", "Import"],
+            ["categories", "Categories"],
+          ] as [Segment, string][]
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={seg === id ? "on" : ""}
+            onClick={() => setSeg(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-      <h2>Import</h2>
+      {seg === "backups" && <BackupsCard />}
+      {seg === "categories" && <Categories />}
+
+      {seg === "import" && (
+        <>
       <p className="muted">
         Wallet CSV export (semicolon-separated). Upload, review the mapping, then import.
       </p>
@@ -288,6 +313,8 @@ export default function Import() {
           </li>
         ))}
       </ul>
+        </>
+      )}
     </div>
   );
 }
