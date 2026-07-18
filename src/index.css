@@ -903,18 +903,55 @@ button:disabled {
   min-width: 2px;
 }
 
-.compare-tiles {
-  margin-bottom: 0.75rem;
+/* compare summary: full-width rows, values can never truncate */
+.cmp-summary {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-2);
+  border-radius: var(--r-input);
+  padding: 0.25rem 0.75rem;
+  margin-bottom: 0.8rem;
 }
 
-.compare-tiles .stat-tile {
-  grid-column: auto !important;
-  background: var(--surface) !important;
+.cmp-sline {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
 }
 
-.compare-tiles .stat-value {
-  font-size: 0.95rem !important;
-  letter-spacing: -0.01em !important;
+.cmp-sline + .cmp-sline {
+  border-top: 1px solid var(--border);
+}
+
+.cmp-sline .lbl {
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.cmp-sline .val {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cmp-sline .val .muted {
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+
+.cmp-sline .val.up {
+  color: var(--red);
+}
+
+.cmp-sline .val.down {
+  color: var(--green);
+}
+
+.cmp-sline .pct {
+  font-size: 0.78rem;
 }
 
 /* compare: stacked rows that always fit the screen width */

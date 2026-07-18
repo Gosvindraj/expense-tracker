@@ -653,8 +653,16 @@ function Compare({
     mode === "month" ? monthRange(monthA) : { from: `${yearA}-01-01`, to: `${yearA}-12-31` };
   const rangeB =
     mode === "month" ? monthRange(monthB) : { from: `${yearB}-01-01`, to: `${yearB}-12-31` };
-  const labelA = mode === "month" ? monthA : yearA;
-  const labelB = mode === "month" ? monthB : yearB;
+  const ym = (s: string, short = false) =>
+    /^\d{4}-\d{2}$/.test(s)
+      ? short
+        ? MONTHS[Number(s.slice(5, 7)) - 1]
+        : `${MONTHS[Number(s.slice(5, 7)) - 1]} ${s.slice(0, 4)}`
+      : s;
+  const labelA = ym(mode === "month" ? monthA : yearA);
+  const labelB = ym(mode === "month" ? monthB : yearB);
+  const shortA = ym(mode === "month" ? monthA : yearA, true);
+  const shortB = ym(mode === "month" ? monthB : yearB, true);
 
   const compareQuery = useQuery({
     queryKey: ["stats-compare", rangeA, rangeB, categories],
@@ -705,28 +713,28 @@ function Compare({
 
       {data && (
         <>
-          <div className="kpi-row compare-tiles">
-            <div className="stat-tile">
-              <span className="stat-label">{labelA}</span>
-              <span className="stat-value">{fmtAmount(data.a.sumMinor)}</span>
-              <span className="stat-delta muted">{data.a.count} expenses</span>
+          <div className="cmp-summary">
+            <div className="cmp-sline">
+              <span className="lbl">{labelA}</span>
+              <span className="val">
+                {fmtAmount(data.a.sumMinor)} <span className="muted">· {data.a.count}</span>
+              </span>
             </div>
-            <div className="stat-tile">
-              <span className="stat-label">{labelB}</span>
-              <span className="stat-value">{fmtAmount(data.b.sumMinor)}</span>
-              <span className="stat-delta muted">{data.b.count} expenses</span>
+            <div className="cmp-sline">
+              <span className="lbl">{labelB}</span>
+              <span className="val">
+                {fmtAmount(data.b.sumMinor)} <span className="muted">· {data.b.count}</span>
+              </span>
             </div>
-            <div className="stat-tile">
-              <span className="stat-label">Change</span>
-              <span className={`stat-value delta-value ${delta > 0 ? "up" : delta < 0 ? "down" : ""}`}>
+            <div className="cmp-sline change">
+              <span className="lbl">Change</span>
+              <span className={`val ${delta > 0 ? "up" : delta < 0 ? "down" : ""}`}>
                 {delta > 0 ? "+" : delta < 0 ? "−" : ""}
                 {fmtAmount(Math.abs(delta))}
+                {deltaPct !== null && (
+                  <span className="pct"> {delta > 0 ? "▲" : "▼"}{Math.abs(deltaPct).toFixed(0)}%</span>
+                )}
               </span>
-              {deltaPct !== null && (
-                <span className={`stat-delta ${delta > 0 ? "up" : "down"}`}>
-                  {delta > 0 ? "▲" : "▼"} {Math.abs(deltaPct).toFixed(0)}%
-                </span>
-              )}
             </div>
           </div>
 
@@ -746,7 +754,7 @@ function Compare({
                     </span>
                   </div>
                   <div className="cmp-sub">
-                    {labelA}: {fmtAmount(r.aMinor)} → {labelB}: {fmtAmount(r.bMinor)}
+                    {shortA}: {fmtAmount(r.aMinor)} → {shortB}: {fmtAmount(r.bMinor)}
                   </div>
                 </div>
               );
