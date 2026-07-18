@@ -58,6 +58,7 @@ export interface Expense {
   createdAt: string;
   updatedAt: string;
   importBatchId: number | null;
+  recurringRuleId: number | null;
 }
 
 // ---------- expense list filters ----------
@@ -84,6 +85,68 @@ export interface ExpenseListResult {
   items: Expense[];
   total: number; // count of all rows matching the filter
   sumMinor: number; // sum of all rows matching the filter
+}
+
+// ---------- budgets ----------
+
+export const budgetCreateSchema = z.object({
+  categoryId: z.number().int().positive().nullable().default(null), // null = overall
+  amountMinor: z.number().int().positive(),
+  period: z.enum(["monthly", "yearly"]).default("monthly"),
+});
+
+export const budgetUpdateSchema = budgetCreateSchema
+  .partial()
+  .extend({ active: z.boolean().optional() });
+
+export type BudgetCreate = z.infer<typeof budgetCreateSchema>;
+export type BudgetUpdate = z.infer<typeof budgetUpdateSchema>;
+
+export interface Budget {
+  id: number;
+  categoryId: number | null;
+  amountMinor: number;
+  period: "monthly" | "yearly";
+  active: boolean;
+  createdAt: string;
+}
+
+export interface BudgetWithStatus extends Budget {
+  spentMinor: number; // current period
+  history: { period: string; spentMinor: number }[]; // previous periods, newest first
+}
+
+// ---------- recurring ----------
+
+export const recurringCreateSchema = z.object({
+  categoryId: z.number().int().positive(),
+  amountMinor: z.number().int().positive(),
+  note: z.string().trim().max(500).default(""),
+  frequency: z.enum(["weekly", "monthly", "yearly"]),
+  interval: z.number().int().min(1).max(24).default(1),
+  nextDueOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  endOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+});
+
+export const recurringUpdateSchema = recurringCreateSchema
+  .partial()
+  .extend({ active: z.boolean().optional() });
+
+export type RecurringCreate = z.infer<typeof recurringCreateSchema>;
+export type RecurringUpdate = z.infer<typeof recurringUpdateSchema>;
+
+export interface RecurringRule {
+  id: number;
+  categoryId: number;
+  amountMinor: number;
+  note: string;
+  frequency: "weekly" | "monthly" | "yearly";
+  interval: number;
+  anchorDay: number | null;
+  nextDueOn: string;
+  endOn: string | null;
+  active: boolean;
+  createdAt: string;
 }
 
 // ---------- stats ----------

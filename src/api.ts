@@ -15,6 +15,13 @@ import type {
   CategoryStat,
   TimeseriesPoint,
   CompareResult,
+  Budget,
+  BudgetCreate,
+  BudgetUpdate,
+  BudgetWithStatus,
+  RecurringRule,
+  RecurringCreate,
+  RecurringUpdate,
 } from "../shared/schemas";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -126,6 +133,24 @@ export const importCommit = (input: ImportCommitRequest) =>
 export const getImportBatches = () => api<ImportBatch[]>("/api/import/batches");
 export const deleteImportBatch = (id: number) =>
   api<{ ok: true }>(`/api/import/batches/${id}`, { method: "DELETE" });
+
+// ---------- budgets & recurring ----------
+
+export const getBudgets = () => api<BudgetWithStatus[]>("/api/budgets");
+export const createBudget = (input: BudgetCreate) =>
+  api<Budget>("/api/budgets", json("POST", input));
+export const updateBudget = (id: number, input: BudgetUpdate) =>
+  api<Budget>(`/api/budgets/${id}`, json("PATCH", input));
+export const deleteBudget = (id: number) =>
+  api<{ ok: true }>(`/api/budgets/${id}`, { method: "DELETE" });
+
+export const getRecurring = () => api<RecurringRule[]>("/api/recurring");
+export const createRecurring = (input: RecurringCreate) =>
+  api<RecurringRule>("/api/recurring", json("POST", input));
+export const updateRecurring = (id: number, input: RecurringUpdate) =>
+  api<RecurringRule>(`/api/recurring/${id}`, json("PATCH", input));
+export const deleteRecurring = (id: number) =>
+  api<{ ok: true }>(`/api/recurring/${id}`, { method: "DELETE" });
 
 // ---------- backups ----------
 

@@ -635,6 +635,158 @@ button:disabled {
   text-align: right;
 }
 
+/* ---------- plan screen ---------- */
+
+.plan-screen h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.plan-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.plan-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.budget-card {
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.budget-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.budget-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.budget-numbers {
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+  display: flex;
+  gap: 0.3rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.budget-numbers .over {
+  color: #b91c1c;
+}
+
+.budget-pct {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.budget-pct.over {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.budget-track {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.budget-fill {
+  height: 100%;
+  border-radius: 5px;
+  background: var(--accent);
+  min-width: 2px;
+  transition: width 0.2s;
+}
+
+.budget-fill.close {
+  background: #d97706;
+}
+
+.budget-fill.over {
+  background: #b91c1c;
+}
+
+.budget-history {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+}
+
+.budget-history .hist {
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.budget-history .hist.over {
+  color: #b91c1c;
+}
+
+.budget-history .hist.under {
+  color: #15803d;
+}
+
+.small-btn {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.inactive-rule {
+  opacity: 0.55;
+}
+
+.upcoming-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.upcoming-list li {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+}
+
+.upcoming-list li > span:first-child {
+  color: var(--muted);
+  white-space: nowrap;
+  font-size: 0.78rem;
+  min-width: 6.2rem;
+}
+
+.upcoming-list .mid {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcoming-list .amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* ---------- import screen ---------- */
 
 .import-screen h2 {

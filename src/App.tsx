@@ -2,16 +2,18 @@ import { useState } from "react";
 import AddExpense from "./screens/AddExpense";
 import ExpensesList from "./screens/ExpensesList";
 import Stats from "./screens/Stats";
+import Plan from "./screens/Plan";
 import Categories from "./screens/Categories";
 import Import from "./screens/Import";
 import type { ExpenseFilters } from "./api";
 
-type Tab = "add" | "list" | "stats" | "categories" | "import";
+type Tab = "add" | "list" | "stats" | "plan" | "categories" | "import";
 
 const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: "add", icon: "➕", label: "Add" },
-  { id: "list", icon: "📋", label: "Expenses" },
+  { id: "list", icon: "📋", label: "List" },
   { id: "stats", icon: "📊", label: "Stats" },
+  { id: "plan", icon: "🎯", label: "Plan" },
   { id: "categories", icon: "🏷️", label: "Categories" },
   { id: "import", icon: "📥", label: "Data" },
 ];
@@ -44,6 +46,7 @@ export default function App() {
           <ExpensesList filters={listFilters} onFiltersChange={setListFilters} />
         )}
         {tab === "stats" && <Stats onOpenExpenses={openExpenses} />}
+        {tab === "plan" && <Plan />}
         {tab === "categories" && <Categories />}
         {tab === "import" && <Import />}
       </div>

@@ -6,6 +6,7 @@ import { categories, expenses } from "./db/schema";
 import importApp from "./import";
 import statsApp from "./stats";
 import backupApp, { runBackup } from "./backup";
+import { budgetsApp, recurringApp, materializeDueRules } from "./plan";
 import type { Env } from "./env";
 import {
   categoryCreateSchema,
@@ -25,6 +26,8 @@ app.get("/health", (c) => c.json({ ok: true }));
 app.route("/import", importApp);
 app.route("/stats", statsApp);
 app.route("/", backupApp); // /api/backups, /api/export
+app.route("/budgets", budgetsApp);
+app.route("/recurring", recurringApp);
 
 // ---------- categories ----------
 
@@ -151,8 +154,9 @@ app.delete("/expenses/:id", async (c) => {
 
 export default {
   fetch: app.fetch,
-  // nightly cron (see wrangler.jsonc triggers): snapshot all tables to R2
+  // nightly cron (see wrangler.jsonc triggers): materialize due recurring
+  // expenses first, then snapshot all tables to R2 (so the snapshot includes them)
   scheduled(_event, env, ctx) {
-    ctx.waitUntil(runBackup(env));
+    ctx.waitUntil(materializeDueRules(env).then(() => runBackup(env)));
   },
 } satisfies ExportedHandler<Env["Bindings"]>;
