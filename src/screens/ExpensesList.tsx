@@ -18,14 +18,19 @@ import { fmtAmount, fmtDay, spentAtToInput, inputToSpentAt } from "../lib/format
 
 const PAGE = 50;
 
-export default function ExpensesList() {
+export default function ExpensesList({
+  filters,
+  onFiltersChange,
+}: {
+  filters: ExpenseFilters;
+  onFiltersChange: (f: ExpenseFilters) => void;
+}) {
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: getCategories });
   const catById = useMemo(
     () => new Map((categoriesQuery.data ?? []).map((c) => [c.id, c])),
     [categoriesQuery.data],
   );
 
-  const [filters, setFilters] = useState<ExpenseFilters>({});
   const [panelOpen, setPanelOpen] = useState(false);
 
   const expensesQuery = useInfiniteQuery({
@@ -78,9 +83,10 @@ export default function ExpensesList() {
 
       {panelOpen && (
         <FilterPanel
+          key={JSON.stringify(filters)}
           categories={(categoriesQuery.data ?? []).filter((c) => !c.archived || filters.categories?.includes(c.id))}
           value={filters}
-          onApply={(f) => setFilters(f)}
+          onApply={onFiltersChange}
         />
       )}
 

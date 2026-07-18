@@ -389,6 +389,252 @@ button:disabled {
   opacity: 0.7;
 }
 
+/* ---------- stats screen ---------- */
+
+.stats-screen.stale .card,
+.stats-screen.stale .kpi-row {
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.stats-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.stats-filters select {
+  flex: 1;
+  min-width: 0;
+}
+
+.stats-filters .cat-filter-btn {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.cat-filter-btn.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.stat-tile {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-weight: 600;
+  font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-delta {
+  font-size: 0.72rem;
+}
+
+.stat-delta.up,
+.delta-value.up,
+.compare-table td.up {
+  color: #b91c1c;
+}
+
+.stat-delta.down,
+.delta-value.down,
+.compare-table td.down {
+  color: #15803d;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.card-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.bucket-switch {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bucket-switch button {
+  border: none;
+  border-radius: 0;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.bucket-switch button.on {
+  background: var(--accent);
+  color: white;
+}
+
+.chart-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.chart-empty {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.tick-text {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: white;
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.tt-value {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.tt-label {
+  font-size: 0.72rem;
+  opacity: 0.8;
+}
+
+.cat-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.cat-row {
+  border: none;
+  background: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cat-row-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.cat-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-row-val {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.cat-row-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.cat-row-bar {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  min-width: 2px;
+}
+
+.compare-tiles {
+  margin-bottom: 0.75rem;
+}
+
+.compare-tiles .stat-value {
+  font-size: 0.95rem;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.compare-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 0.25rem 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.compare-table td {
+  padding: 0.32rem 0.3rem;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.compare-table td:first-child {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: normal;
+}
+
+.compare-table th:not(:first-child),
+.compare-table td:not(:first-child) {
+  text-align: right;
+}
+
 /* ---------- import screen ---------- */
 
 .import-screen h2 {

@@ -11,6 +11,10 @@ import type {
   ImportPreviewResult,
   ImportCommitResult,
   ImportBatch,
+  StatsSummary,
+  CategoryStat,
+  TimeseriesPoint,
+  CompareResult,
 } from "../shared/schemas";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -79,6 +83,39 @@ export const updateExpense = (id: number, input: ExpenseUpdate) =>
   api<Expense>(`/api/expenses/${id}`, json("PATCH", input));
 export const deleteExpense = (id: number) =>
   api<{ ok: true }>(`/api/expenses/${id}`, { method: "DELETE" });
+
+// ---------- stats ----------
+
+export interface StatsFilters {
+  from?: string;
+  to?: string;
+  categories?: number[];
+}
+
+function statsParams(f: StatsFilters, extra?: Record<string, string>) {
+  const p = new URLSearchParams();
+  if (f.from) p.set("from", f.from);
+  if (f.to) p.set("to", f.to);
+  if (f.categories?.length) p.set("categories", f.categories.join(","));
+  for (const [k, v] of Object.entries(extra ?? {})) p.set(k, v);
+  return p;
+}
+
+export const getStatsSummary = (f: StatsFilters) =>
+  api<StatsSummary>(`/api/stats/summary?${statsParams(f)}`);
+export const getStatsByCategory = (f: StatsFilters) =>
+  api<CategoryStat[]>(`/api/stats/by-category?${statsParams(f)}`);
+export const getStatsTimeseries = (f: StatsFilters, bucket: "day" | "month" | "year") =>
+  api<TimeseriesPoint[]>(`/api/stats/timeseries?${statsParams(f, { bucket })}`);
+export const getStatsCompare = (
+  a: { from: string; to: string },
+  b: { from: string; to: string },
+  categories?: number[],
+) => {
+  const p = new URLSearchParams({ fromA: a.from, toA: a.to, fromB: b.from, toB: b.to });
+  if (categories?.length) p.set("categories", categories.join(","));
+  return api<CompareResult>(`/api/stats/compare?${p}`);
+};
 
 // ---------- import ----------
 

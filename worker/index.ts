@@ -4,6 +4,7 @@ import { zValidator } from "@hono/zod-validator";
 import { and, asc, count, desc, eq, gte, inArray, lte, like, sql, sum } from "drizzle-orm";
 import { categories, expenses } from "./db/schema";
 import importApp from "./import";
+import statsApp from "./stats";
 import {
   categoryCreateSchema,
   categoryUpdateSchema,
@@ -26,6 +27,7 @@ const app = new Hono<Env>().basePath("/api");
 app.get("/health", (c) => c.json({ ok: true }));
 
 app.route("/import", importApp);
+app.route("/stats", statsApp);
 
 // ---------- categories ----------
 

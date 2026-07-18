@@ -86,6 +86,57 @@ export interface ExpenseListResult {
   sumMinor: number; // sum of all rows matching the filter
 }
 
+// ---------- stats ----------
+
+const dateParam = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const statsFilterSchema = z.object({
+  from: dateParam.optional(),
+  to: dateParam.optional(),
+  categories: intListParam.optional(),
+});
+
+export const timeseriesQuerySchema = statsFilterSchema.extend({
+  bucket: z.enum(["day", "month", "year"]).default("month"),
+});
+
+export const compareQuerySchema = z.object({
+  fromA: dateParam,
+  toA: dateParam,
+  fromB: dateParam,
+  toB: dateParam,
+  categories: intListParam.optional(),
+});
+
+export type StatsFilter = z.infer<typeof statsFilterSchema>;
+export type TimeseriesQuery = z.infer<typeof timeseriesQuerySchema>;
+export type CompareQuery = z.infer<typeof compareQuerySchema>;
+
+export interface StatsSummary {
+  sumMinor: number;
+  count: number;
+  minDay: string | null; // earliest expense day in the filtered set
+  maxDay: string | null;
+}
+
+export interface CategoryStat {
+  categoryId: number;
+  sumMinor: number;
+  count: number;
+}
+
+export interface TimeseriesPoint {
+  bucket: string; // '2023-05-14' | '2023-05' | '2023'
+  sumMinor: number;
+  count: number;
+}
+
+export interface CompareResult {
+  a: { sumMinor: number; count: number };
+  b: { sumMinor: number; count: number };
+  byCategory: { categoryId: number; aMinor: number; bMinor: number }[];
+}
+
 // ---------- import ----------
 
 export const importPreviewRequestSchema = z.object({

@@ -30,6 +30,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "drizzle-kit": "^0.31.10",
+    "puppeteer-core": "^25.3.0",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",
     "wrangler": "^4.112.0"
