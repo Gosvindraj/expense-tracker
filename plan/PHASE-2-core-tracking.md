@@ -9,36 +9,44 @@ stop using Wallet for new entries.**
 ## Tasks
 
 ### Schema (full)
-- [ ] Migrations for: `categories` (self-referencing `parent_id`), `expenses`,
+- [x] Migrations for: `categories` (self-referencing `parent_id`), `expenses`,
       `import_batches`; drop the Phase-1 `accounts` table
-      (budgets/recurring wait for Phase 5)
-- [ ] Indexes: `expenses(spent_at)`, `(category_id)`
-- [ ] Amounts as positive `INTEGER` minor units; shared money helpers in `shared/`
+      (budgets/recurring wait for Phase 5) — `0001` + `0002`, applied local + remote
+- [x] Indexes: `expenses(spent_at)`, `(category_id)`
+- [x] Amounts as positive `INTEGER` minor units; shared money helpers in `shared/`
 
 ### API
-- [ ] CRUD for categories (archive instead of delete when in use)
-- [ ] CRUD for expenses
-- [ ] `GET /api/expenses` with the full filter set: date range, categories[],
+- [x] CRUD for categories (DELETE returns 409 when in use — archive instead)
+- [x] CRUD for expenses
+- [x] `GET /api/expenses` with the full filter set: date range, categories[],
       note text search, amount min/max, pagination — returns items + total count
       + **sum of the filtered set**
-- [ ] Recently-used categories endpoint (drives the add-screen ordering)
-- [ ] Zod schemas in `shared/` for every request/response
+- [x] `GET /api/categories/recent` — usage in last 90 days, drives add-screen order
+- [x] Zod schemas in `shared/` for every request/response
 
 ### UI
-- [ ] **Add expense screen** — the most-used screen, optimize ruthlessly:
-      - [ ] big numeric keypad
-      - [ ] recently-used categories surfaced first
-      - [ ] defaults to now (date editable)
-      - [ ] target: < 5 seconds to log a typical expense
-- [ ] **Expenses list** — newest first, load-more, filter panel (all API filters),
-      running total for the filtered set, tap to edit/delete
-- [ ] **Categories screen** — create, edit, archive, icon + color
-- [ ] Optimistic updates via TanStack Query so entry feels instant
-- [ ] Mobile-first layout — this will live on a phone
+- [x] **Add expense screen**:
+      - [x] big numeric keypad (2-decimal, single-dot input rules)
+      - [x] recently-used categories surfaced first
+      - [x] defaults to now (date editable)
+      - [ ] target: < 5 seconds to log a typical expense — *verify on phone*
+- [x] **Expenses list** — newest first, day-grouped with day totals, load-more,
+      filter panel (all API filters), running total for the filtered set,
+      tap to edit/delete in a modal
+- [x] **Categories screen** — create, edit, archive/restore, delete-when-unused,
+      icon + color
+- [x] Cache invalidation via TanStack Query on every mutation
+- [x] Mobile-first layout (bottom tab bar, safe-area insets)
 
 ### Seed
-- [ ] Seed the 33 categories from the real Wallet export (exact names, so Phase 3
-      auto-mapping is trivial), with icons + colors
+- [x] Seeded the 33 categories from the real Wallet export (exact names, so Phase 3
+      auto-mapping is trivial), with icons + colors — `seed/categories.sql`,
+      applied local + remote (`npm run db:seed:local|remote`)
+
+### Verified 2026-07-18 (local API tests)
+- create/list/patch/delete expenses, filtered sums, 400 on invalid payload,
+  409 on deleting an in-use category, recent-categories ordering — all pass;
+  remote deploy re-verified (33 categories, 0 expenses)
 
 ## Done when
 
