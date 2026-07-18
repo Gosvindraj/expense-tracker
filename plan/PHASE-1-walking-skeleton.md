@@ -4,7 +4,7 @@
 back, live on `*.workers.dev`. Deploy on day one — everything after is iteration on
 a live app.
 
-**Status: done except Cloudflare Access (manual dashboard step) and phone verification.**
+**Status: DONE — including Cloudflare Access (enabled 2026-07-18).**
 Live at https://expense-tracker.example.workers.dev
 
 > Structural note: instead of npm workspaces, we used the current recommended
@@ -31,18 +31,19 @@ Live at https://expense-tracker.example.workers.dev
 - [x] Deployed to https://expense-tracker.example.workers.dev — remote
       `/api/health` and `/api/accounts` verified working
 
-### Auth — REMAINING (manual, ~10 min in dashboard)
-- [ ] Enable Cloudflare Access: dash.cloudflare.com → Zero Trust → Access →
-      Applications → Add application → Self-hosted →
-      domain `expense-tracker.example.workers.dev`, policy: Allow →
-      Include → Emails → you@example.com
-- [ ] Verify the app is unreachable without logging in, and usable on the phone after
-- [ ] **Until Access is enabled the URL is public — don't enter real data**
+### Auth — DONE 2026-07-18
+- [x] Enabled Cloudflare Access via **Workers & Pages → expense-tracker → Settings →
+      Domains & Routes → ⋯ on the workers.dev row → Enable Cloudflare Access**
+      (note: workers.dev domains never appear in the Zero Trust self-hosted app
+      dropdown — that lists only owned zones; the Workers-side toggle is the way),
+      policy restricted to you@example.com
+- [x] Verified: unauthenticated request → 302 to your-team.cloudflareaccess.com
+      login; app usable after logging in
 
 ## Done when
 
-- Visiting the production URL on my phone prompts a Cloudflare Access login, then
-  shows the app ← *remaining*
+- [x] Visiting the production URL prompts a Cloudflare Access login, then
+  shows the app
 - [x] Creating an account row persists in D1 and survives a redeploy
 - [x] `README.md` documents dev, migrate, and deploy commands
 

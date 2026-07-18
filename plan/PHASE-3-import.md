@@ -56,10 +56,9 @@ for future bank-statement CSVs.
 - [x] Spot-check: Nov 2022 = 57 rows ✓ (matches pre-import analysis)
 - [x] Re-upload flags all 1,505 as duplicates, inserts 0 ✓
 - [x] Rollback deletes the batch's expenses and restores cleanly ✓
-- [x] **Production import done 2026-07-18** (user chose to proceed before enabling
-      Access): batch #1, 1,505 rows, RM XX,XXX.XX reconciled, Nov 2022 = 57 ✓.
-      ⚠️ Cloudflare Access still pending — the app and data are publicly reachable
-      until it's enabled (see Phase 1 auth checklist).
+- [x] **Production import done 2026-07-18**: batch #1, 1,505 rows, RM XX,XXX.XX
+      reconciled, Nov 2022 = 57 ✓. (Cloudflare Access enabled later the same day —
+      the app and data are now login-gated.)
 
 ## Done when
 

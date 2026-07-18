@@ -36,7 +36,11 @@ See [PLAN.md](PLAN.md) for the full build plan and [plan/](plan/) for per-phase 
 
 ## Auth
 
-The app is meant to sit behind **Cloudflare Access** (Zero Trust, free tier):
-dashboard → Zero Trust → Access → Applications → add a self-hosted app for
-`expense-tracker.example.workers.dev` with a policy allowing only my email.
-Until that's enabled, the URL is public — don't put real data in.
+The app sits behind **Cloudflare Access** (Zero Trust, free tier), enabled via
+Workers & Pages → expense-tracker → Settings → Domains & Routes → ⋯ on the
+workers.dev row → Enable Cloudflare Access. Policy allows only my email.
+(workers.dev domains don't appear in the Zero Trust self-hosted app dropdown —
+the Workers-side toggle is the correct path.)
+
+Consequence: unauthenticated `curl` against production gets a 302 to the Access
+login — API verification must run against the local dev server.
