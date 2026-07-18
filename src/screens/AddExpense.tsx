@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCategories, getRecentCategoryIds, createExpense } from "../api";
+import type { Category } from "../../shared/schemas";
 import { parseToMinor } from "../../shared/money";
 import { CURRENCY, toDatetimeLocal, inputToSpentAt } from "../lib/format";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"] as const;
+const STRIP_COUNT = 8;
 
 export default function AddExpense() {
   const queryClient = useQueryClient();
@@ -17,6 +19,7 @@ export default function AddExpense() {
   const [when, setWhen] = useState(() => toDatetimeLocal(new Date()));
   const [error, setError] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const orderedCategories = useMemo(() => {
     const cats = (categoriesQuery.data ?? []).filter((c) => !c.archived);
@@ -29,6 +32,16 @@ export default function AddExpense() {
       return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name);
     });
   }, [categoriesQuery.data, recentQuery.data]);
+
+  // quick strip: most-recent categories, with the selected one always visible
+  const strip = useMemo(() => {
+    const base = orderedCategories.slice(0, STRIP_COUNT);
+    if (categoryId !== null && !base.some((c) => c.id === categoryId)) {
+      const sel = orderedCategories.find((c) => c.id === categoryId);
+      if (sel) return [sel, ...base.slice(0, STRIP_COUNT - 1)];
+    }
+    return base;
+  }, [orderedCategories, categoryId]);
 
   const saveMutation = useMutation({
     mutationFn: createExpense,
@@ -76,8 +89,15 @@ export default function AddExpense() {
         <span className="value">{amount || "0"}</span>
       </div>
 
-      <div className="cat-grid">
-        {orderedCategories.map((c) => (
+      <div className="cat-strip">
+        <button
+          type="button"
+          className={`cat-chip all-btn ${categoryId === null ? "" : ""}`}
+          onClick={() => setPickerOpen(true)}
+        >
+          ⌗ All
+        </button>
+        {strip.map((c) => (
           <button
             key={c.id}
             type="button"
@@ -113,6 +133,65 @@ export default function AddExpense() {
       <button className="save-btn" type="button" onClick={save} disabled={saveMutation.isPending}>
         {saveMutation.isPending ? "Saving…" : savedFlash ? "Saved ✓" : "Save expense"}
       </button>
+
+      {pickerOpen && (
+        <CategoryPicker
+          categories={orderedCategories}
+          selectedId={categoryId}
+          onSelect={(id) => {
+            setCategoryId(id);
+            setPickerOpen(false);
+            setError(null);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function CategoryPicker({
+  categories,
+  selectedId,
+  onSelect,
+  onClose,
+}: {
+  categories: Category[];
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const filtered = q ? categories.filter((c) => c.name.toLowerCase().includes(q)) : categories;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal picker-sheet" onClick={(e) => e.stopPropagation()}>
+        <h3>Category</h3>
+        <input
+          autoFocus
+          placeholder="Search…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div className="picker-grid">
+          {filtered.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`picker-item ${selectedId === c.id ? "selected" : ""}`}
+              onClick={() => onSelect(c.id)}
+            >
+              <span className="icon" style={{ background: `${c.color}33` }}>
+                {c.icon}
+              </span>
+              <span className="name">{c.name}</span>
+            </button>
+          ))}
+          {filtered.length === 0 && <p className="muted">No match.</p>}
+        </div>
+      </div>
     </div>
   );
 }

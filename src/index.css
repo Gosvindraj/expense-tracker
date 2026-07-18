@@ -359,14 +359,30 @@ button:disabled {
   color: var(--text-3);
 }
 
-.cat-grid {
+.cat-strip {
   display: flex;
-  flex-wrap: wrap;
   gap: 0.45rem;
   margin-bottom: 0.9rem;
-  max-height: 8.6rem;
-  overflow-y: auto;
-  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0;
+  /* soft fade hinting there's more to scroll */
+  mask-image: linear-gradient(90deg, black 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, black 92%, transparent);
+}
+
+.cat-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.cat-strip .cat-chip {
+  flex-shrink: 0;
+}
+
+.cat-strip .all-btn {
+  color: var(--accent-hover);
+  border-color: var(--border-strong);
+  font-weight: 650;
 }
 
 .cat-chip {
@@ -1243,4 +1259,53 @@ button:disabled {
   font-size: 0.76rem;
   font-weight: 550;
   color: var(--text-2);
+}
+
+/* ---------- category picker sheet ---------- */
+
+.picker-sheet {
+  max-height: 72vh;
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  overflow-y: auto;
+  padding-bottom: 0.25rem;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  text-align: left;
+  min-width: 0;
+}
+
+.picker-item .icon {
+  width: 2.1rem;
+  height: 2.1rem;
+  min-width: 2.1rem;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+}
+
+.picker-item .name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-item.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
