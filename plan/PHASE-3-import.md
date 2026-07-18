@@ -56,9 +56,10 @@ for future bank-statement CSVs.
 - [x] Spot-check: Nov 2022 = 57 rows ✓ (matches pre-import analysis)
 - [x] Re-upload flags all 1,505 as duplicates, inserts 0 ✓
 - [x] Rollback deletes the batch's expenses and restores cleanly ✓
-- [ ] **Production import pending — blocked on enabling Cloudflare Access first.**
-      Then: open the app → Import tab → choose the CSV → Import (everything
-      auto-matches). Verify the total on the Expenses tab reads RM XX,XXX.XX.
+- [x] **Production import done 2026-07-18** (user chose to proceed before enabling
+      Access): batch #1, 1,505 rows, RM XX,XXX.XX reconciled, Nov 2022 = 57 ✓.
+      ⚠️ Cloudflare Access still pending — the app and data are publicly reachable
+      until it's enabled (see Phase 1 auth checklist).
 
 ## Done when
 
