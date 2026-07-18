@@ -6,6 +6,11 @@ import type {
   ExpenseCreate,
   ExpenseUpdate,
   ExpenseListResult,
+  ImportPreviewRequest,
+  ImportCommitRequest,
+  ImportPreviewResult,
+  ImportCommitResult,
+  ImportBatch,
 } from "../shared/schemas";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -74,3 +79,13 @@ export const updateExpense = (id: number, input: ExpenseUpdate) =>
   api<Expense>(`/api/expenses/${id}`, json("PATCH", input));
 export const deleteExpense = (id: number) =>
   api<{ ok: true }>(`/api/expenses/${id}`, { method: "DELETE" });
+
+// ---------- import ----------
+
+export const importPreview = (input: ImportPreviewRequest) =>
+  api<ImportPreviewResult>("/api/import/preview", json("POST", input));
+export const importCommit = (input: ImportCommitRequest) =>
+  api<ImportCommitResult>("/api/import/commit", json("POST", input));
+export const getImportBatches = () => api<ImportBatch[]>("/api/import/batches");
+export const deleteImportBatch = (id: number) =>
+  api<{ ok: true }>(`/api/import/batches/${id}`, { method: "DELETE" });

@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { zValidator } from "@hono/zod-validator";
 import { and, asc, count, desc, eq, gte, inArray, lte, like, sql, sum } from "drizzle-orm";
 import { categories, expenses } from "./db/schema";
+import importApp from "./import";
 import {
   categoryCreateSchema,
   categoryUpdateSchema,
@@ -23,6 +24,8 @@ const nowStamp = () => new Date().toISOString().slice(0, 19).replace("T", " ");
 const app = new Hono<Env>().basePath("/api");
 
 app.get("/health", (c) => c.json({ ok: true }));
+
+app.route("/import", importApp);
 
 // ---------- categories ----------
 

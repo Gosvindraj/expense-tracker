@@ -34,28 +34,31 @@ for future bank-statement CSVs.
   category mapping (with optional merges) + dedupe is the whole job
 
 ### Importer API
-- [ ] `POST /api/import/preview` — parse uploaded CSV, return: detected columns,
-      row count, distinct accounts/categories/labels found, proposed mapping onto
-      existing entities (auto-match by name), unmatched items, parse errors
-- [ ] `POST /api/import/commit` — execute with the user-confirmed mapping:
-      - [ ] create missing categories if chosen (or map onto an existing one — this
+- [x] `POST /api/import/preview` — parses the CSV, returns row count, date range,
+      total, distinct categories with proposed mapping (auto-match by name),
+      unmatched items, parse errors, duplicate count
+- [x] `POST /api/import/commit` — executes with the user-confirmed mapping:
+      - [x] create missing categories if chosen (or map onto an existing one — this
             is where near-duplicate categories get merged)
-      - [ ] duplicate detection (same date + amount + category) with skip/include choice
-      - [ ] tag every row with an `import_batch_id`
-- [ ] `DELETE /api/import/batches/:id` — one-click rollback of a bad import
+      - [x] duplicate detection (same timestamp + amount) with skip/include choice
+      - [x] tags every row with an `import_batch_id`; chunked atomic `db.batch` inserts
+- [x] `GET /api/import/batches` + `DELETE /api/import/batches/:id` — one-click rollback
 
-### Importer UI (in Settings)
-- [ ] Upload → preview screen: mapping table (Wallet name → my entity, editable),
-      warnings for unmatched/duplicate/error rows
-- [ ] Commit with progress + result summary (imported / skipped / errors)
-- [ ] Import history list with per-batch rollback
+### Importer UI (Import tab)
+- [x] Upload → preview card: stats, editable mapping table (defaults: matched by
+      name, unmatched → create), duplicate skip/include choice, parse-error block
+- [x] Commit with result summary (imported / skipped / created categories)
+- [x] Import history list with per-batch rollback
 
-### Verification
-- [ ] All-time total after import = **XX,XXX.XX MYR** (confirmed to match Wallet's
-      own all-time expense figure)
-- [ ] Row count: imported = 1,505 (minus any explicitly skipped duplicates)
-- [ ] Spot-check the oldest month (Nov 2022) and a random middle month against
-      Wallet screenshots taken before cancelling
+### Verification — done locally 2026-07-18 against the real CSV
+- [x] All-time total after import = **RM XX,XXX.XX** — exact match ✓
+- [x] Row count: 1,505 imported, 0 errors, all 33 categories auto-matched
+- [x] Spot-check: Nov 2022 = 57 rows ✓ (matches pre-import analysis)
+- [x] Re-upload flags all 1,505 as duplicates, inserts 0 ✓
+- [x] Rollback deletes the batch's expenses and restores cleanly ✓
+- [ ] **Production import pending — blocked on enabling Cloudflare Access first.**
+      Then: open the app → Import tab → choose the CSV → Import (everything
+      auto-matches). Verify the total on the Expenses tab reads RM XX,XXX.XX.
 
 ## Done when
 

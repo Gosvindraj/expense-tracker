@@ -85,3 +85,48 @@ export interface ExpenseListResult {
   total: number; // count of all rows matching the filter
   sumMinor: number; // sum of all rows matching the filter
 }
+
+// ---------- import ----------
+
+export const importPreviewRequestSchema = z.object({
+  csv: z.string().min(1),
+  filename: z.string().trim().min(1).max(200),
+});
+
+export const importCommitRequestSchema = importPreviewRequestSchema.extend({
+  // CSV category name -> existing category id, or "create" a new one
+  mapping: z.record(z.string(), z.union([z.literal("create"), z.number().int().positive()])),
+  duplicates: z.enum(["skip", "include"]).default("skip"),
+});
+
+export type ImportPreviewRequest = z.infer<typeof importPreviewRequestSchema>;
+export type ImportCommitRequest = z.infer<typeof importCommitRequestSchema>;
+
+export interface ImportPreviewResult {
+  rows: number; // importable expense rows
+  skippedNonExpense: number; // rows whose type isn't "Expenses"
+  parseErrors: { line: number; error: string }[];
+  sumMinor: number;
+  dateMin: string | null;
+  dateMax: string | null;
+  // one entry per distinct CSV category, matched to an existing category by name
+  categories: { name: string; count: number; matchedCategoryId: number | null }[];
+  // rows whose (spentAt, amountMinor) already exists in the DB
+  duplicates: number;
+}
+
+export interface ImportCommitResult {
+  batchId: number;
+  inserted: number;
+  skippedDuplicates: number;
+  createdCategories: string[];
+}
+
+export interface ImportBatch {
+  id: number;
+  source: string;
+  filename: string;
+  rowCount: number;
+  importedAt: string;
+  expenseCount: number; // rows currently in DB from this batch
+}

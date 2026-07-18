@@ -2,13 +2,15 @@ import { useState } from "react";
 import AddExpense from "./screens/AddExpense";
 import ExpensesList from "./screens/ExpensesList";
 import Categories from "./screens/Categories";
+import Import from "./screens/Import";
 
-type Tab = "add" | "list" | "categories";
+type Tab = "add" | "list" | "categories" | "import";
 
 const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: "add", icon: "➕", label: "Add" },
   { id: "list", icon: "📋", label: "Expenses" },
   { id: "categories", icon: "🏷️", label: "Categories" },
+  { id: "import", icon: "📥", label: "Import" },
 ];
 
 export default function App() {
@@ -20,6 +22,7 @@ export default function App() {
         {tab === "add" && <AddExpense />}
         {tab === "list" && <ExpensesList />}
         {tab === "categories" && <Categories />}
+        {tab === "import" && <Import />}
       </div>
       <nav className="tabbar">
         {TABS.map((t) => (
