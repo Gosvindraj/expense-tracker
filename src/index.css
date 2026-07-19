@@ -73,7 +73,9 @@ textarea {
 }
 
 .chart-wrap svg {
-  touch-action: pan-y; /* vertical scroll ok; no selection/zoom stealing the hover */
+  /* both pan axes: vertical page scroll AND the chart's own horizontal swipe;
+     still blocks pinch/double-tap zoom from stealing the interaction */
+  touch-action: pan-x pan-y;
 }
 
 #root,
