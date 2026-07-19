@@ -29,8 +29,17 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let msg = `${init?.method ?? "GET"} ${path} failed (${res.status})`;
     try {
-      const body = (await res.json()) as { error?: string };
-      if (body.error) msg = body.error;
+      const body = (await res.json()) as {
+        error?: string | { issues?: { path?: (string | number)[]; message?: string }[] };
+      };
+      if (typeof body.error === "string") {
+        msg = body.error;
+      } else if (body.error && Array.isArray(body.error.issues) && body.error.issues[0]) {
+        // zod validation error from the API — surface the first issue readably
+        const issue = body.error.issues[0];
+        const field = issue.path?.join(".") ?? "";
+        msg = field ? `${field}: ${issue.message}` : (issue.message ?? msg);
+      }
     } catch {
       /* keep default message */
     }
