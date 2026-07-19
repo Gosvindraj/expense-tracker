@@ -894,6 +894,68 @@ input[type="datetime-local"] {
   width: 100%;
 }
 
+.chart-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.chart-scroll svg {
+  display: block;
+}
+
+.yaxis-pin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.tick-text.pinned {
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+}
+
+.chart-scroll-hint {
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--text-3);
+  margin-top: 0.15rem;
+}
+
+.zoom-back {
+  margin-bottom: 0.5rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+  border-radius: var(--r-chip);
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  border: none;
+  font-weight: 650;
+}
+
+.tt-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.tt-actions button {
+  padding: 0.28rem 0.6rem;
+  font-size: 0.74rem;
+  font-weight: 650;
+  border-radius: 8px;
+  background: var(--accent);
+  border: none;
+  color: white;
+}
+
+.tt-actions button:first-child:not(:only-child) {
+  background: var(--surface-2);
+  color: var(--accent-hover);
+  border: 1px solid var(--border-strong);
+}
+
 .chart-empty {
   padding: 2rem 0;
   text-align: center;

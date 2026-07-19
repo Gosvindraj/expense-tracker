@@ -215,6 +215,10 @@ export default function Stats({
   const [catsOpen, setCatsOpen] = useState(false);
   const [periodOpen, setPeriodOpen] = useState(false);
 
+  // chart drill-down zoom: year → months → days, with a back trail
+  type ZoomFrame = { preset: string; customFrom: string; customTo: string; bucket: Bucket | null };
+  const [zoomStack, setZoomStack] = useState<ZoomFrame[]>([]);
+
   const range =
     preset === "custom"
       ? { from: customFrom || undefined, to: customTo || undefined }
@@ -329,6 +333,7 @@ export default function Stats({
           onPick={(key) => {
             setPreset(key);
             setBucketOverride(null);
+            setZoomStack([]);
             setPeriodOpen(false);
           }}
           onApplyCustom={(f, t) => {
@@ -336,6 +341,7 @@ export default function Stats({
             setCustomTo(t);
             setPreset("custom");
             setBucketOverride(null);
+            setZoomStack([]);
             setPeriodOpen(false);
           }}
           onClose={() => setPeriodOpen(false)}
@@ -405,10 +411,50 @@ export default function Stats({
             ))}
           </div>
         </div>
+        {zoomStack.length > 0 && (
+          <button
+            type="button"
+            className="zoom-back"
+            onClick={() => {
+              const prev = zoomStack[zoomStack.length - 1];
+              setZoomStack((s) => s.slice(0, -1));
+              setPreset(prev.preset);
+              setCustomFrom(prev.customFrom);
+              setCustomTo(prev.customTo);
+              setBucketOverride(prev.bucket);
+            }}
+          >
+            ‹ Back to {periodLabel(
+              zoomStack[zoomStack.length - 1].preset,
+              zoomStack[zoomStack.length - 1].customFrom,
+              zoomStack[zoomStack.length - 1].customTo,
+            )}
+          </button>
+        )}
         <ColumnChart
           points={series}
           bucket={bucket}
-          onBarClick={(key) => drill(bucketToRange(key, bucket))}
+          onView={(key) => drill(bucketToRange(key, bucket))}
+          onZoom={
+            bucket === "day"
+              ? undefined
+              : (key) => {
+                  setZoomStack((s) => [
+                    ...s,
+                    { preset, customFrom, customTo, bucket: bucketOverride },
+                  ]);
+                  if (bucket === "year") {
+                    setPreset(`year-${key}`);
+                    setBucketOverride("month");
+                  } else {
+                    const r = monthRange(key);
+                    setCustomFrom(r.from);
+                    setCustomTo(r.to);
+                    setPreset("custom");
+                    setBucketOverride("day");
+                  }
+                }
+          }
         />
       </div>
 
@@ -459,42 +505,55 @@ const tickLabel = (minor: number) => {
   return String(Math.round(rm));
 };
 
+const MIN_BAND = 16; // px per bar — below this the chart scrolls instead of shrinking
+
 function ColumnChart({
   points,
   bucket,
-  onBarClick,
+  onView,
+  onZoom,
 }: {
   points: TimeseriesPoint[];
   bucket: Bucket;
-  onBarClick: (bucketKey: string) => void;
+  onView: (bucketKey: string) => void;
+  onZoom?: (bucketKey: string) => void;
 }) {
   const { ref, width } = useWidth<HTMLDivElement>();
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [hover, setHover] = useState<number | null>(null); // mouse, transient
-  const [selected, setSelected] = useState<number | null>(null); // touch, sticky
+  const [selected, setSelected] = useState<number | null>(null); // tap, pinned
+  const [scrollLeft, setScrollLeft] = useState(0);
 
-  // new data = new bars; drop any stale selection
-  useEffect(() => {
-    setHover(null);
-    setSelected(null);
-  }, [points]);
-
+  const n = points.length;
   const H = 200;
   const M = { top: 10, right: 6, bottom: 22, left: 40 };
   const innerW = Math.max(0, width - M.left - M.right);
+  const chartInnerW = Math.max(innerW, n * MIN_BAND);
+  const chartW = chartInnerW + M.left + M.right;
+  const scrollable = chartInnerW > innerW;
   const innerH = H - M.top - M.bottom;
 
-  if (points.length === 0) {
+  // new data = new bars; drop stale selection, jump to the most recent end
+  useEffect(() => {
+    setHover(null);
+    setSelected(null);
+    const el = scrollRef.current;
+    if (el) {
+      el.scrollLeft = el.scrollWidth;
+      setScrollLeft(el.scrollLeft);
+    }
+  }, [points, chartW]);
+
+  if (n === 0) {
     return <div ref={ref} className="chart-empty muted">No data in this range.</div>;
   }
 
   const maxV = niceCeil(Math.max(...points.map((p) => p.sumMinor), 1));
   const yTicks = [0, maxV / 2, maxV];
-  const n = points.length;
-  const band = n > 0 ? innerW / n : 0;
+  const band = chartInnerW / n;
   const barW = Math.max(2, Math.min(24, band * 0.72));
   const y = (v: number) => M.top + innerH * (1 - v / maxV);
-
-  const labelEvery = Math.max(1, Math.ceil(n / 6));
+  const labelEvery = Math.max(1, Math.ceil(48 / band));
 
   const roundedBar = (x: number, yTop: number, w: number, yBase: number) => {
     const r = Math.min(4, w / 2, Math.max(0, yBase - yTop));
@@ -502,95 +561,108 @@ function ColumnChart({
   };
 
   const activeIdx = selected ?? hover;
-  const hovered = activeIdx !== null ? points[activeIdx] : null;
-  const hoverX = activeIdx !== null ? M.left + activeIdx * band + band / 2 : 0;
+  const active = activeIdx !== null ? points[activeIdx] : null;
+  const activeX = activeIdx !== null ? M.left + activeIdx * band + band / 2 - scrollLeft : 0;
 
   return (
     <div ref={ref} className="chart-wrap">
       {width > 0 && (
-        <svg width={width} height={H} role="img" aria-label="Spending over time">
-          {yTicks.map((t) => (
-            <g key={t}>
-              <line
-                x1={M.left}
-                x2={width - M.right}
-                y1={y(t)}
-                y2={y(t)}
-                stroke="var(--border)"
-                strokeWidth="1"
-              />
-              <text x={M.left - 6} y={y(t) + 3.5} textAnchor="end" className="tick-text">
+        <>
+          <div
+            className="chart-scroll"
+            ref={scrollRef}
+            onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
+          >
+            <svg width={chartW} height={H} role="img" aria-label="Spending over time">
+              {yTicks.map((t) => (
+                <line
+                  key={t}
+                  x1={M.left}
+                  x2={chartW - M.right}
+                  y1={y(t)}
+                  y2={y(t)}
+                  stroke="var(--border)"
+                  strokeWidth="1"
+                />
+              ))}
+              {points.map((p, i) => {
+                const x = M.left + i * band + (band - barW) / 2;
+                const yTop = y(p.sumMinor);
+                return (
+                  <g key={p.bucket}>
+                    {p.sumMinor > 0 && (
+                      <path
+                        d={roundedBar(x, yTop, barW, y(0))}
+                        fill={activeIdx === i ? "var(--accent-hover)" : "var(--accent)"}
+                      />
+                    )}
+                    {/* full-height hit target; zero bars are inert */}
+                    <rect
+                      x={M.left + i * band}
+                      y={M.top}
+                      width={band}
+                      height={innerH}
+                      fill="transparent"
+                      style={{ cursor: p.sumMinor > 0 ? "pointer" : "default" }}
+                      onPointerEnter={(e) => {
+                        if (p.sumMinor > 0 && e.pointerType === "mouse") setHover(i);
+                      }}
+                      onPointerLeave={(e) => {
+                        if (e.pointerType === "mouse") setHover((h) => (h === i ? null : h));
+                      }}
+                      onPointerUp={() => {
+                        setSelected(p.sumMinor > 0 ? i : null);
+                      }}
+                    />
+                    {i % labelEvery === 0 && (
+                      <text
+                        x={M.left + i * band + band / 2}
+                        y={H - 6}
+                        textAnchor="middle"
+                        className="tick-text"
+                      >
+                        {bucketLabel(p.bucket, bucket)}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+          {/* y-axis labels pinned while the plot scrolls underneath */}
+          <svg className="yaxis-pin" width={M.left} height={H}>
+            {yTicks.map((t) => (
+              <text key={t} x={M.left - 6} y={y(t) + 3.5} textAnchor="end" className="tick-text pinned">
                 {tickLabel(t)}
               </text>
-            </g>
-          ))}
-          {points.map((p, i) => {
-            const x = M.left + i * band + (band - barW) / 2;
-            const yTop = y(p.sumMinor);
-            return (
-              <g key={p.bucket}>
-                {p.sumMinor > 0 && (
-                  <path
-                    d={roundedBar(x, yTop, barW, y(0))}
-                    fill={activeIdx === i ? "var(--accent-hover)" : "var(--accent)"}
-                  />
-                )}
-                {/* full-height hit target, wider than the mark; zero bars are inert */}
-                <rect
-                  x={M.left + i * band}
-                  y={M.top}
-                  width={band}
-                  height={innerH}
-                  fill="transparent"
-                  style={{ cursor: p.sumMinor > 0 ? "pointer" : "default" }}
-                  onPointerEnter={(e) => {
-                    if (p.sumMinor > 0 && e.pointerType === "mouse") setHover(i);
-                  }}
-                  onPointerLeave={(e) => {
-                    if (e.pointerType === "mouse") setHover((h) => (h === i ? null : h));
-                  }}
-                  onPointerUp={(e) => {
-                    if (p.sumMinor === 0) {
-                      setSelected(null);
-                      return;
-                    }
-                    // mouse: hover already shows the tooltip, click drills straight in.
-                    // touch: first tap opens the tooltip; drilling happens via the tooltip.
-                    if (e.pointerType === "mouse") onBarClick(p.bucket);
-                    else setSelected(i);
-                  }}
-                />
-                {i % labelEvery === 0 && (
-                  <text
-                    x={M.left + i * band + band / 2}
-                    y={H - 6}
-                    textAnchor="middle"
-                    className="tick-text"
-                  >
-                    {bucketLabel(p.bucket, bucket)}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
+            ))}
+          </svg>
+          {scrollable && <div className="chart-scroll-hint">‹ swipe ›</div>}
+        </>
       )}
-      {hovered && hovered.sumMinor > 0 && (
-        <button
-          type="button"
-          className="chart-tooltip clickable"
+      {active && active.sumMinor > 0 && (
+        <div
+          className="chart-tooltip actions"
           style={{
-            left: `${Math.min(Math.max(hoverX, 78), Math.max(width - 78, 78))}px`,
+            left: `${Math.min(Math.max(activeX, 92), Math.max(width - 92, 92))}px`,
           }}
-          onClick={() => onBarClick(hovered.bucket)}
         >
-          <span className="tt-value">{fmtAmount(hovered.sumMinor)}</span>
+          <span className="tt-value">{fmtAmount(active.sumMinor)}</span>
           <span className="tt-label">
-            {bucketLabel(hovered.bucket, bucket)} · {hovered.count} expense
-            {hovered.count === 1 ? "" : "s"}
+            {bucketLabel(active.bucket, bucket)} · {active.count} expense
+            {active.count === 1 ? "" : "s"}
           </span>
-          <span className="tt-hint">View expenses ›</span>
-        </button>
+          <span className="tt-actions">
+            {onZoom && (
+              <button type="button" onClick={() => onZoom(active.bucket)}>
+                Zoom in
+              </button>
+            )}
+            <button type="button" onClick={() => onView(active.bucket)}>
+              View ›
+            </button>
+          </span>
+        </div>
       )}
     </div>
   );
