@@ -91,6 +91,7 @@ export default function AddExpense() {
       setExpr("");
       setNote("");
       setWhenDate(todayISO());
+      setCategoryId(null); // fresh pick for every expense
       setError(null);
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 1500);
