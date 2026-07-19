@@ -272,6 +272,15 @@ function RecurringSection({
             setAdding(false);
             setEditing(null);
           }}
+          onRequestDelete={
+            editing
+              ? () => {
+                  const id = editing.id;
+                  setEditing(null);
+                  setConfirmRuleId(id);
+                }
+              : undefined
+          }
         />
       )}
 
@@ -300,23 +309,21 @@ function RecurringSection({
                   {!r.active && " · paused"}
                 </span>
               </span>
-              <button type="button" className="small-btn" onClick={() => setEditing(r)}>
-                Edit
+              <button
+                type="button"
+                className="icon-act"
+                title="Edit"
+                onClick={() => setEditing(r)}
+              >
+                ✎
               </button>
               <button
                 type="button"
-                className="small-btn"
+                className="icon-act"
                 title={r.active ? "Pause" : "Resume"}
                 onClick={() => toggleMutation.mutate({ id: r.id, active: !r.active })}
               >
                 {r.active ? "⏸" : "▶"}
-              </button>
-              <button
-                type="button"
-                className="danger small-btn"
-                onClick={() => setConfirmRuleId(r.id)}
-              >
-                ✕
               </button>
             </li>
           );
@@ -357,11 +364,13 @@ function RecurringForm({
   rule,
   onDone,
   onCancel,
+  onRequestDelete,
 }: {
   cats: Category[];
   rule: RecurringRule | null;
   onDone: () => void;
   onCancel: () => void;
+  onRequestDelete?: () => void;
 }) {
   const [categoryId, setCategoryId] = useState<number | null>(rule?.categoryId ?? cats[0]?.id ?? null);
   const [amount, setAmount] = useState(rule ? String(rule.amountMinor / 100) : "");
@@ -447,13 +456,18 @@ function RecurringForm({
       </div>
       {err && <p className="error">{err}</p>}
       <div className="row">
+        <button type="button" className="quiet" onClick={onCancel}>
+          Cancel
+        </button>
         <button type="submit" className="primary" disabled={saveMutation.isPending}>
           {rule ? "Save" : "Add rule"}
         </button>
-        <button type="button" onClick={onCancel}>
-          Cancel
-        </button>
       </div>
+      {onRequestDelete && (
+        <button type="button" className="danger sheet-delete" onClick={onRequestDelete}>
+          Delete rule
+        </button>
+      )}
     </form>
   );
 }

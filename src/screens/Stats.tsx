@@ -397,7 +397,7 @@ export default function Stats({
       {/* ---- spending over time ---- */}
       <div className="card">
         <div className="card-head">
-          <h3>Spending over time</h3>
+          <h3>Spending</h3>
           <div className="bucket-switch">
             {(["day", "month", "year"] as Bucket[]).map((b) => (
               <button

@@ -14,7 +14,7 @@ import {
 } from "../api";
 import type { Category, Expense } from "../../shared/schemas";
 import { parseToMinor } from "../../shared/money";
-import { fmtAmount, fmtDay, spentAtToInput, inputToSpentAt } from "../lib/format";
+import { fmtAmount, fmtDay } from "../lib/format";
 import { CategoryField } from "../components/CategoryPicker";
 import ConfirmSheet from "../components/ConfirmSheet";
 
@@ -270,9 +270,9 @@ function FilterPanel({
         <input placeholder="Max amount" inputMode="decimal" value={max} onChange={(e) => setMax(e.target.value)} />
       </div>
       {err && <p className="error">{err}</p>}
-      <div className="row">
+      <div className="filter-actions">
+        <button type="button" className="quiet" onClick={clear}>Clear</button>
         <button type="submit" className="primary">Apply</button>
-        <button type="button" onClick={clear}>Clear</button>
       </div>
     </form>
   );
@@ -291,7 +291,7 @@ function EditModal({
   const [amount, setAmount] = useState(String(expense.amountMinor / 100));
   const [categoryId, setCategoryId] = useState(expense.categoryId);
   const [note, setNote] = useState(expense.note);
-  const [when, setWhen] = useState(spentAtToInput(expense.spentAt));
+  const [when, setWhen] = useState(expense.spentAt.slice(0, 10)); // date only; time preserved
   const [err, setErr] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -309,7 +309,7 @@ function EditModal({
         amountMinor: minor,
         categoryId,
         note: note.trim(),
-        spentAt: inputToSpentAt(when),
+        spentAt: `${when} ${expense.spentAt.slice(11)}`,
       });
     },
     onSuccess: done,
@@ -342,10 +342,10 @@ function EditModal({
           <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
         </label>
         <label>When
-          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <input type="date" value={when} onChange={(e) => setWhen(e.target.value)} />
         </label>
         {err && <p className="error">{err}</p>}
-        <div className="row">
+        <div className="sheet-actions">
           <button
             type="button"
             className="primary"
@@ -354,14 +354,14 @@ function EditModal({
           >
             {saveMutation.isPending ? "Saving…" : "Save"}
           </button>
-          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="button" className="quiet" onClick={onClose}>Cancel</button>
           <button
             type="button"
-            className="danger"
+            className="danger sheet-delete"
             onClick={() => setConfirmDelete(true)}
             disabled={deleteMutation.isPending}
           >
-            Delete
+            Delete expense
           </button>
         </div>
         {confirmDelete && (

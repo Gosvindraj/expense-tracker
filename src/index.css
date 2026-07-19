@@ -471,6 +471,8 @@ input[type="datetime-local"] {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 0.9rem;
+  /* flexible space lives above the input cluster: keypad+save stay in the thumb zone */
+  margin-top: auto;
 }
 
 .keypad {
@@ -580,8 +582,43 @@ input[type="datetime-local"] {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  max-height: 7.5rem;
+  max-height: 10.5rem;
   overflow-y: auto;
+  /* fade instead of hard-clipping a row of chips */
+  mask-image: linear-gradient(180deg, black 82%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, black 82%, transparent);
+  padding-bottom: 1.4rem;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filter-actions .primary {
+  flex: 2;
+}
+
+.filter-actions .quiet {
+  flex: 1;
+}
+
+button.quiet {
+  background: none;
+  border-color: transparent;
+  color: var(--text-2);
+}
+
+.sheet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.sheet-actions .sheet-delete,
+.sheet-actions .sheet-archive {
+  margin-top: 0.6rem;
 }
 
 .filter-cats .cat-chip {
@@ -1468,9 +1505,10 @@ input[type="datetime-local"] {
   font-weight: 550;
 }
 
-/* backup action row: equal-height, centered, no wrap weirdness */
+/* backup actions: primary full-width, exports side by side beneath */
 .backup-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -1483,6 +1521,38 @@ input[type="datetime-local"] {
   padding: 0.65rem 0.4rem;
   font-size: 0.85rem;
   line-height: 1.2;
+  white-space: nowrap;
+}
+
+.backup-actions > .primary {
+  flex: 1 0 100%;
+}
+
+/* uniform small icon actions (recurring rows etc.) */
+.icon-act {
+  width: 2.3rem;
+  height: 2.3rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.cat-list li.tappable {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cat-list li.tappable:active {
+  background: var(--surface-2);
+}
+
+.row-chev {
+  color: var(--text-3);
+  font-size: 1.1rem;
+  padding-right: 0.15rem;
 }
 
 /* categories management */

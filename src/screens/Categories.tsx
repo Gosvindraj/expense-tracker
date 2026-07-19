@@ -98,16 +98,10 @@ export default function Categories() {
 
       <ul className="cat-list">
         {active.map((c) => (
-          <li key={c.id}>
+          <li key={c.id} className="tappable" onClick={() => setEditing(c)}>
             <span className="icon" style={{ background: `${c.color}33` }}>{c.icon}</span>
             <span className="mid">{c.name}</span>
-            <button type="button" onClick={() => setEditing(c)}>Edit</button>
-            <button
-              type="button"
-              onClick={() => archiveMutation.mutate({ id: c.id, archived: true })}
-            >
-              Archive
-            </button>
+            <span className="row-chev">›</span>
           </li>
         ))}
       </ul>
@@ -117,22 +111,10 @@ export default function Categories() {
           <h3 className="muted">Archived</h3>
           <ul className="cat-list archived">
             {archived.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} className="tappable" onClick={() => setEditing(c)}>
                 <span className="icon">{c.icon}</span>
                 <span className="mid">{c.name}</span>
-                <button
-                  type="button"
-                  onClick={() => archiveMutation.mutate({ id: c.id, archived: false })}
-                >
-                  Restore
-                </button>
-                <button
-                  type="button"
-                  className="danger"
-                  onClick={() => setConfirmCat(c)}
-                >
-                  Delete
-                </button>
+                <span className="row-chev">›</span>
               </li>
             ))}
           </ul>
@@ -155,6 +137,14 @@ export default function Categories() {
           onDone={() => {
             invalidate();
             setEditing(null);
+          }}
+          onToggleArchive={() => {
+            archiveMutation.mutate({ id: editing.id, archived: !editing.archived });
+            setEditing(null);
+          }}
+          onRequestDelete={() => {
+            setEditing(null);
+            setConfirmCat(editing);
           }}
         />
       )}
@@ -214,10 +204,14 @@ function EditCategoryModal({
   category,
   onClose,
   onDone,
+  onToggleArchive,
+  onRequestDelete,
 }: {
   category: Category;
   onClose: () => void;
   onDone: () => void;
+  onToggleArchive: () => void;
+  onRequestDelete: () => void;
 }) {
   const [name, setName] = useState(category.name);
   const [icon, setIcon] = useState(category.icon);
@@ -257,7 +251,7 @@ function EditCategoryModal({
           />
         )}
         {err && <p className="error">{err}</p>}
-        <div className="row">
+        <div className="sheet-actions">
           <button
             type="button"
             className="primary"
@@ -269,7 +263,15 @@ function EditCategoryModal({
           >
             {saveMutation.isPending ? "Saving…" : "Save"}
           </button>
-          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="button" className="quiet" onClick={onClose}>Cancel</button>
+          <button type="button" className="sheet-archive" onClick={onToggleArchive}>
+            {category.archived ? "Restore category" : "Archive category"}
+          </button>
+          {category.archived && (
+            <button type="button" className="danger" onClick={onRequestDelete}>
+              Delete category
+            </button>
+          )}
         </div>
       </div>
     </div>

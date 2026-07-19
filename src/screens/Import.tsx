@@ -40,7 +40,6 @@ function BackupsCard() {
 
   return (
     <div className={`card ${staleWarning ? "warn" : ""}`}>
-      <h3>Backups</h3>
       {backupsQuery.isLoading ? (
         <p className="muted">Loading…</p>
       ) : latest ? (
