@@ -520,9 +520,15 @@ function ColumnChart({
 }) {
   const { ref, width } = useWidth<HTMLDivElement>();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef(0);
   const [hover, setHover] = useState<number | null>(null); // mouse, transient
   const [selected, setSelected] = useState<number | null>(null); // tap, pinned
   const [scrollLeft, setScrollLeft] = useState(0);
+
+  const onScroll = (el: HTMLDivElement) => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => setScrollLeft(el.scrollLeft));
+  };
 
   const n = points.length;
   const H = 200;
@@ -548,17 +554,18 @@ function ColumnChart({
     return <div ref={ref} className="chart-empty muted">No data in this range.</div>;
   }
 
-  const maxV = niceCeil(Math.max(...points.map((p) => p.sumMinor), 1));
-  const yTicks = [0, maxV / 2, maxV];
   const band = chartInnerW / n;
+  // y-scale follows the bars currently in view, not the all-time peak
+  const visStart = Math.max(0, Math.floor((scrollLeft - M.left) / band));
+  const visEnd = Math.min(n - 1, Math.ceil((scrollLeft + width - M.left) / band));
+  let visMax = 0;
+  for (let i = visStart; i <= visEnd; i++) visMax = Math.max(visMax, points[i]?.sumMinor ?? 0);
+  const maxV = niceCeil(Math.max(visMax, 1));
+  const yTicks = [0, maxV / 2, maxV];
   const barW = Math.max(2, Math.min(24, band * 0.72));
-  const y = (v: number) => M.top + innerH * (1 - v / maxV);
+  const y = (v: number) => M.top + innerH * (1 - Math.min(1, v / maxV));
   const labelEvery = Math.max(1, Math.ceil(48 / band));
-
-  const roundedBar = (x: number, yTop: number, w: number, yBase: number) => {
-    const r = Math.min(4, w / 2, Math.max(0, yBase - yTop));
-    return `M ${x} ${yBase} V ${yTop + r} Q ${x} ${yTop} ${x + r} ${yTop} H ${x + w - r} Q ${x + w} ${yTop} ${x + w} ${yTop + r} V ${yBase} Z`;
-  };
+  const barR = Math.min(4, barW / 2);
 
   const activeIdx = selected ?? hover;
   const active = activeIdx !== null ? points[activeIdx] : null;
@@ -571,16 +578,22 @@ function ColumnChart({
           <div
             className="chart-scroll"
             ref={scrollRef}
-            onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
+            onScroll={(e) => onScroll(e.currentTarget)}
           >
             <svg width={chartW} height={H} role="img" aria-label="Spending over time">
-              {yTicks.map((t) => (
+              <defs>
+                {/* clip at the baseline: bars extend below it so only their tops read as rounded */}
+                <clipPath id="plot-clip">
+                  <rect x="0" y="0" width={chartW} height={y(0)} />
+                </clipPath>
+              </defs>
+              {yTicks.map((_, idx) => (
                 <line
-                  key={t}
+                  key={idx}
                   x1={M.left}
                   x2={chartW - M.right}
-                  y1={y(t)}
-                  y2={y(t)}
+                  y1={M.top + (innerH / 2) * (2 - idx)}
+                  y2={M.top + (innerH / 2) * (2 - idx)}
                   stroke="var(--border)"
                   strokeWidth="1"
                 />
@@ -591,8 +604,14 @@ function ColumnChart({
                 return (
                   <g key={p.bucket}>
                     {p.sumMinor > 0 && (
-                      <path
-                        d={roundedBar(x, yTop, barW, y(0))}
+                      <rect
+                        className="bar"
+                        clipPath="url(#plot-clip)"
+                        x={x}
+                        y={yTop}
+                        width={barW}
+                        height={Math.max(0, y(0) - yTop) + barR}
+                        rx={barR}
                         fill={activeIdx === i ? "var(--accent-hover)" : "var(--accent)"}
                       />
                     )}

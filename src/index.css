@@ -905,6 +905,10 @@ input[type="datetime-local"] {
   display: block;
 }
 
+.chart-scroll .bar {
+  transition: y 0.25s ease, height 0.25s ease; /* smooth rescale as the y-axis adapts */
+}
+
 .yaxis-pin {
   position: absolute;
   top: 0;
