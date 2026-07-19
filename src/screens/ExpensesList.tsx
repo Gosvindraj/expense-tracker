@@ -20,6 +20,47 @@ import ConfirmSheet from "../components/ConfirmSheet";
 
 const PAGE = 50;
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const shortDate = (iso: string) =>
+  `${Number(iso.slice(8, 10))} ${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(2, 4)}`;
+
+/** Human chips for every active filter, each with the patch that clears it. */
+function filterChips(
+  filters: ExpenseFilters,
+  catById: Map<number, Category>,
+): { key: string; label: string; clear: Partial<ExpenseFilters> }[] {
+  const chips = [];
+  if (filters.from || filters.to) {
+    const label =
+      filters.from && filters.to
+        ? `${shortDate(filters.from)} – ${shortDate(filters.to)}`
+        : filters.from
+          ? `from ${shortDate(filters.from)}`
+          : `until ${shortDate(filters.to!)}`;
+    chips.push({ key: "date", label, clear: { from: undefined, to: undefined } });
+  }
+  if (filters.categories?.length) {
+    const label =
+      filters.categories.length <= 2
+        ? filters.categories
+            .map((id) => {
+              const c = catById.get(id);
+              return c ? `${c.icon} ${c.name}` : "?";
+            })
+            .join(", ")
+        : `${filters.categories.length} categories`;
+    chips.push({ key: "cats", label, clear: { categories: undefined } });
+  }
+  if (filters.q) chips.push({ key: "q", label: `“${filters.q}”`, clear: { q: undefined } });
+  if (filters.minMinor !== undefined || filters.maxMinor !== undefined) {
+    const min = filters.minMinor !== undefined ? `RM ${(filters.minMinor / 100).toFixed(2)}` : null;
+    const max = filters.maxMinor !== undefined ? `RM ${(filters.maxMinor / 100).toFixed(2)}` : null;
+    const label = min && max ? `${min} – ${max}` : min ? `≥ ${min}` : `≤ ${max}`;
+    chips.push({ key: "amount", label, clear: { minMinor: undefined, maxMinor: undefined } });
+  }
+  return chips;
+}
+
 export default function ExpensesList({
   filters,
   onFiltersChange,
@@ -75,13 +116,27 @@ export default function ExpensesList({
           <div className="list-sum">{fmtAmount(sumMinor)}</div>
           <div className="list-count">
             {total} expense{total === 1 ? "" : "s"}
-            {hasFilters ? " (filtered)" : ""}
           </div>
         </div>
         <button type="button" className="filter-toggle" onClick={() => setPanelOpen((o) => !o)}>
           {panelOpen ? "Hide filters" : hasFilters ? "Filters •" : "Filters"}
         </button>
       </header>
+
+      {hasFilters && !panelOpen && (
+        <div className="fchips">
+          {filterChips(filters, catById).map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              className="fchip"
+              onClick={() => onFiltersChange({ ...filters, ...chip.clear })}
+            >
+              {chip.label} <span className="x">✕</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {panelOpen && (
         <FilterPanel

@@ -536,6 +536,33 @@ input[type="datetime-local"] {
   font-size: 0.83rem;
 }
 
+/* active-filter chips shown when the panel is collapsed */
+.fchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.fchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--accent-hover);
+  font-size: 0.78rem;
+  font-weight: 600;
+  max-width: 100%;
+}
+
+.fchip .x {
+  opacity: 0.75;
+  font-size: 0.72rem;
+}
+
 .filter-panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -889,10 +916,23 @@ input[type="datetime-local"] {
   padding: 0.4rem 0.6rem;
   display: flex;
   flex-direction: column;
-  pointer-events: none;
+  align-items: flex-start;
   white-space: nowrap;
   z-index: 5;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+  text-align: left;
+}
+
+.chart-tooltip.clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.tt-hint {
+  font-size: 0.7rem;
+  color: var(--accent-hover);
+  font-weight: 650;
+  margin-top: 0.15rem;
 }
 
 .tt-value {

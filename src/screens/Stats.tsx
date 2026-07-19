@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useLayoutEffect } from "react";
+import { useEffect, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   getCategories,
@@ -469,7 +469,14 @@ function ColumnChart({
   onBarClick: (bucketKey: string) => void;
 }) {
   const { ref, width } = useWidth<HTMLDivElement>();
-  const [hover, setHover] = useState<number | null>(null);
+  const [hover, setHover] = useState<number | null>(null); // mouse, transient
+  const [selected, setSelected] = useState<number | null>(null); // touch, sticky
+
+  // new data = new bars; drop any stale selection
+  useEffect(() => {
+    setHover(null);
+    setSelected(null);
+  }, [points]);
 
   const H = 200;
   const M = { top: 10, right: 6, bottom: 22, left: 40 };
@@ -494,8 +501,9 @@ function ColumnChart({
     return `M ${x} ${yBase} V ${yTop + r} Q ${x} ${yTop} ${x + r} ${yTop} H ${x + w - r} Q ${x + w} ${yTop} ${x + w} ${yTop + r} V ${yBase} Z`;
   };
 
-  const hovered = hover !== null ? points[hover] : null;
-  const hoverX = hover !== null ? M.left + hover * band + band / 2 : 0;
+  const activeIdx = selected ?? hover;
+  const hovered = activeIdx !== null ? points[activeIdx] : null;
+  const hoverX = activeIdx !== null ? M.left + activeIdx * band + band / 2 : 0;
 
   return (
     <div ref={ref} className="chart-wrap">
@@ -524,20 +532,33 @@ function ColumnChart({
                 {p.sumMinor > 0 && (
                   <path
                     d={roundedBar(x, yTop, barW, y(0))}
-                    fill={hover === i ? "var(--accent-hover)" : "var(--accent)"}
+                    fill={activeIdx === i ? "var(--accent-hover)" : "var(--accent)"}
                   />
                 )}
-                {/* full-height hit target, wider than the mark */}
+                {/* full-height hit target, wider than the mark; zero bars are inert */}
                 <rect
                   x={M.left + i * band}
                   y={M.top}
                   width={band}
                   height={innerH}
                   fill="transparent"
-                  style={{ cursor: "pointer" }}
-                  onPointerEnter={() => setHover(i)}
-                  onPointerLeave={() => setHover((h) => (h === i ? null : h))}
-                  onClick={() => onBarClick(p.bucket)}
+                  style={{ cursor: p.sumMinor > 0 ? "pointer" : "default" }}
+                  onPointerEnter={(e) => {
+                    if (p.sumMinor > 0 && e.pointerType === "mouse") setHover(i);
+                  }}
+                  onPointerLeave={(e) => {
+                    if (e.pointerType === "mouse") setHover((h) => (h === i ? null : h));
+                  }}
+                  onPointerUp={(e) => {
+                    if (p.sumMinor === 0) {
+                      setSelected(null);
+                      return;
+                    }
+                    // mouse: hover already shows the tooltip, click drills straight in.
+                    // touch: first tap opens the tooltip; drilling happens via the tooltip.
+                    if (e.pointerType === "mouse") onBarClick(p.bucket);
+                    else setSelected(i);
+                  }}
                 />
                 {i % labelEvery === 0 && (
                   <text
@@ -554,19 +575,22 @@ function ColumnChart({
           })}
         </svg>
       )}
-      {hovered && (
-        <div
-          className="chart-tooltip"
+      {hovered && hovered.sumMinor > 0 && (
+        <button
+          type="button"
+          className="chart-tooltip clickable"
           style={{
-            left: `${Math.min(Math.max(hoverX, 70), Math.max(width - 70, 70))}px`,
+            left: `${Math.min(Math.max(hoverX, 78), Math.max(width - 78, 78))}px`,
           }}
+          onClick={() => onBarClick(hovered.bucket)}
         >
           <span className="tt-value">{fmtAmount(hovered.sumMinor)}</span>
           <span className="tt-label">
             {bucketLabel(hovered.bucket, bucket)} · {hovered.count} expense
             {hovered.count === 1 ? "" : "s"}
           </span>
-        </div>
+          <span className="tt-hint">View expenses ›</span>
+        </button>
       )}
     </div>
   );
