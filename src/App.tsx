@@ -68,14 +68,22 @@ export default function App() {
 
   return (
     <div className="app">
-      <div className="screen">
-        {tab === "stats" && <Stats onOpenExpenses={openExpenses} />}
-        {tab === "list" && (
-          <ExpensesList filters={listFilters} onFiltersChange={setListFilters} />
-        )}
-        {tab === "add" && <AddExpense />}
-        {tab === "plan" && <Plan />}
-        {tab === "import" && <Import />}
+      {/* all screens stay mounted so filters, drafts, and scroll state
+          survive tab switches; only the active one is displayed */}
+      <div className="screen" hidden={tab !== "stats"}>
+        <Stats onOpenExpenses={openExpenses} />
+      </div>
+      <div className="screen" hidden={tab !== "list"}>
+        <ExpensesList filters={listFilters} onFiltersChange={setListFilters} />
+      </div>
+      <div className="screen" hidden={tab !== "add"}>
+        <AddExpense />
+      </div>
+      <div className="screen" hidden={tab !== "plan"}>
+        <Plan />
+      </div>
+      <div className="screen" hidden={tab !== "import"}>
+        <Import />
       </div>
       <nav className="tabbar">
         <button

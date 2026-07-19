@@ -13,6 +13,7 @@
 }
 
 :root {
+  accent-color: #7c6cf6; /* tints native pickers (date calendar header, radios) */
   --bg: #0d0e12;
   --surface: #16181f;
   --surface-2: #1e212b;
@@ -76,7 +77,12 @@ body {
 .screen {
   flex: 1;
   overflow-y: auto;
-  padding: 1.1rem 1.1rem 5.5rem;
+  /* just enough clearance for the FAB overhang — no dead space at page end */
+  padding: 1.1rem 1.1rem 2.4rem;
+}
+
+.screen[hidden] {
+  display: none;
 }
 
 h2 {
@@ -198,6 +204,21 @@ button:disabled {
   font-size: 0.76rem;
   font-weight: 550;
   color: var(--text-2);
+  min-width: 0;
+}
+
+.row label > input,
+.row label > select {
+  width: 100%;
+}
+
+/* date-family inputs get cramped on narrow phones — tighter padding, no clipping */
+input[type="date"],
+input[type="month"],
+input[type="datetime-local"] {
+  padding: 0.65rem 0.5rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- cards ---------- */
@@ -365,6 +386,24 @@ button:disabled {
   color: var(--text-3);
 }
 
+.amount-display .value.long {
+  font-size: 2rem;
+}
+
+.calc-preview {
+  text-align: center;
+  color: var(--accent-hover);
+  font-weight: 650;
+  font-size: 1rem;
+  margin: -0.5rem 0 0.6rem;
+  min-height: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.calc-preview.hidden {
+  visibility: hidden;
+}
+
 .cat-strip {
   display: flex;
   gap: 0.45rem;
@@ -420,19 +459,24 @@ button:disabled {
 
 .keypad {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.45rem;
   margin-bottom: 0.9rem;
-  margin-top: auto;
 }
 
 .key {
-  padding: 0.9rem 0;
-  font-size: 1.35rem;
+  padding: 0.85rem 0;
+  font-size: 1.3rem;
   font-weight: 550;
   border-radius: 16px;
   background: var(--surface);
   border-color: transparent;
+}
+
+.key.op {
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  font-weight: 700;
 }
 
 .key:active {
@@ -1291,23 +1335,47 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text);
   border-radius: var(--r-input);
-  padding: 0.6rem 0.9rem;
+  padding: 0.6rem 0.5rem;
   text-decoration: none;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 550;
+}
+
+/* backup action row: equal-height, centered, no wrap weirdness */
+.backup-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.backup-actions > * {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.65rem 0.4rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
 }
 
 /* categories management */
 
 .cat-create {
-  display: grid;
-  grid-template-columns: 3.2rem 1fr 3rem auto;
-  gap: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
   margin-bottom: 1rem;
+}
+
+.cat-create-row {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr auto;
+  gap: 0.4rem;
   align-items: center;
 }
 
@@ -1316,8 +1384,24 @@ button:disabled {
   padding: 0.65rem 0.2rem;
 }
 
-.cat-create .error {
-  grid-column: 1 / -1;
+.color-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.color-dots .dot {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.color-dots .dot.on {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 
 .cat-list li button {

@@ -45,7 +45,15 @@ function BackupsCard() {
         <p className="muted">Loading…</p>
       ) : latest ? (
         <p className="backup-status">
-          Last snapshot: <strong>{latest.key.replace("snapshots/", "").replace(".json", "")}</strong>{" "}
+          Last snapshot:{" "}
+          <strong>
+            {new Date(latest.uploaded).toLocaleString(undefined, {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </strong>{" "}
           ({(latest.size / 1024).toFixed(0)} KB) · {backups.length} kept
           {staleWarning && <strong className="error"> — more than 48 h old!</strong>}
         </p>
@@ -55,7 +63,7 @@ function BackupsCard() {
         </p>
       )}
       {err && <p className="error">{err}</p>}
-      <div className="row">
+      <div className="backup-actions">
         <button
           type="button"
           className="primary"

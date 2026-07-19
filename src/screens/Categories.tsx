@@ -4,6 +4,28 @@ import { getCategories, createCategory, updateCategory, deleteCategory } from ".
 import type { Category } from "../../shared/schemas";
 import ConfirmSheet from "../components/ConfirmSheet";
 
+const PALETTE = [
+  "#f59e0b", "#f97316", "#ef4444", "#ec4899", "#d946ef", "#8b5cf6",
+  "#6366f1", "#3b82f6", "#06b6d4", "#10b981", "#84cc16", "#eab308", "#8a8f98",
+];
+
+function ColorDots({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+  return (
+    <div className="color-dots">
+      {PALETTE.map((c) => (
+        <button
+          key={c}
+          type="button"
+          aria-label={`color ${c}`}
+          className={`dot ${value === c ? "on" : ""}`}
+          style={{ background: c }}
+          onClick={() => onChange(c)}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function Categories() {
   const queryClient = useQueryClient();
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: getCategories });
@@ -125,10 +147,12 @@ function CreateForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form className="cat-create" onSubmit={submit}>
-      <input value={icon} onChange={(e) => setIcon(e.target.value)} className="icon-input" maxLength={4} />
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New category name" maxLength={60} />
-      <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
-      <button type="submit" className="primary" disabled={createMutation.isPending}>Add</button>
+      <div className="cat-create-row">
+        <input value={icon} onChange={(e) => setIcon(e.target.value)} className="icon-input" maxLength={4} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New category name" maxLength={60} />
+        <button type="submit" className="primary" disabled={createMutation.isPending}>Add</button>
+      </div>
+      <ColorDots value={color} onChange={setColor} />
       {err && <p className="error">{err}</p>}
     </form>
   );
@@ -165,7 +189,7 @@ function EditCategoryModal({
           <input value={icon} onChange={(e) => setIcon(e.target.value)} maxLength={4} />
         </label>
         <label>Color
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+          <ColorDots value={color} onChange={setColor} />
         </label>
         {err && <p className="error">{err}</p>}
         <div className="row">
