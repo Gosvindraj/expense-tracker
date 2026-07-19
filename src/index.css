@@ -53,12 +53,6 @@ body {
   height: 100%;
 }
 
-html,
-body {
-  /* no pull-to-refresh, no overscroll glow — app-like scrolling */
-  overscroll-behavior: none;
-}
-
 body {
   font-family: "Inter Variable", "Inter", system-ui, sans-serif;
   background: var(--bg);
@@ -1477,6 +1471,8 @@ input[type="datetime-local"] {
 }
 
 .modal {
+  /* scrolling inside a sheet shouldn't chain into pull-to-refresh */
+  overscroll-behavior: contain;
   background: var(--surface);
   border: 1px solid var(--border);
   border-bottom: none;
