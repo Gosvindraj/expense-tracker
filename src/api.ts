@@ -25,7 +25,18 @@ import type {
 } from "../shared/schemas";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
+  let res: Response;
+  try {
+    res = await fetch(path, init);
+  } catch {
+    // fetch() throws (rather than resolving with a response) when a request gets
+    // blocked before completing — an expired Access session bouncing to login, a
+    // stale cached redirect, or a dropped connection all look identical here. The
+    // app shell can still load from the PWA's offline cache while this happens,
+    // so the symptom is "app loads, no data" with no obvious cause. A reload
+    // forces a fresh network round-trip and clears all of the above.
+    throw new Error("Couldn't reach the server. Reload the page and try again.");
+  }
   if (!res.ok) {
     let msg = `${init?.method ?? "GET"} ${path} failed (${res.status})`;
     try {
