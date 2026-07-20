@@ -9,6 +9,7 @@ import {
   createRecurring,
   updateRecurring,
   deleteRecurring,
+  invalidateExpenseData,
 } from "../api";
 import type { Category, RecurringRule } from "../../shared/schemas";
 import { projectOccurrences } from "../../shared/recurrence";
@@ -218,7 +219,7 @@ function RecurringSection({
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["recurring"] });
-    queryClient.invalidateQueries({ queryKey: ["expenses"] });
+    invalidateExpenseData(queryClient);
   };
 
   const toggleMutation = useMutation({

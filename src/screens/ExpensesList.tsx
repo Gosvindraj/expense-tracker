@@ -10,6 +10,7 @@ import {
   listExpenses,
   updateExpense,
   deleteExpense,
+  invalidateExpenseData,
   type ExpenseFilters,
 } from "../api";
 import type { Category, Expense } from "../../shared/schemas";
@@ -296,7 +297,7 @@ function EditModal({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const done = () => {
-    queryClient.invalidateQueries({ queryKey: ["expenses"] });
+    invalidateExpenseData(queryClient);
     queryClient.invalidateQueries({ queryKey: ["recent-categories"] });
     onClose();
   };

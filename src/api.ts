@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import type {
   Category,
   CategoryCreate,
@@ -64,6 +65,23 @@ const json = (method: string, body: unknown): RequestInit => ({
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(body),
 });
+
+/**
+ * Refetch everything derived from expense rows: the expenses list, the Stats
+ * ("stats-*") queries behind the Home screen, and Plan's budget progress.
+ * Screens stay mounted across tab switches, so a mutation that only invalidated
+ * ["expenses"] left the Home total (and budget status) stale until a manual
+ * reload. Every add / edit / delete / import / recurring-run funnels through
+ * here so those views refresh on their own.
+ */
+export function invalidateExpenseData(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: ["expenses"] });
+  qc.invalidateQueries({ queryKey: ["budgets"] });
+  qc.invalidateQueries({
+    predicate: (q) =>
+      typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("stats-"),
+  });
+}
 
 // ---------- categories ----------
 

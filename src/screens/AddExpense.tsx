@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCategories, getRecentCategoryIds, createExpense } from "../api";
+import { getCategories, getRecentCategoryIds, createExpense, invalidateExpenseData } from "../api";
 import { CURRENCY } from "../lib/format";
 import CategoryPicker from "../components/CategoryPicker";
 
@@ -86,7 +86,7 @@ export default function AddExpense() {
   const saveMutation = useMutation({
     mutationFn: createExpense,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      invalidateExpenseData(queryClient);
       queryClient.invalidateQueries({ queryKey: ["recent-categories"] });
       setExpr("");
       setNote("");

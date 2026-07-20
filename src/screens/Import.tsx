@@ -7,6 +7,7 @@ import {
   deleteImportBatch,
   getBackups,
   runBackupNow,
+  invalidateExpenseData,
 } from "../api";
 import { getCategories } from "../api";
 import type { ImportPreviewResult, ImportCommitResult } from "../../shared/schemas";
@@ -98,7 +99,7 @@ export default function Import() {
   const [err, setErr] = useState<string | null>(null);
 
   const invalidateData = () => {
-    queryClient.invalidateQueries({ queryKey: ["expenses"] });
+    invalidateExpenseData(queryClient);
     queryClient.invalidateQueries({ queryKey: ["categories"] });
     queryClient.invalidateQueries({ queryKey: ["recent-categories"] });
     queryClient.invalidateQueries({ queryKey: ["import-batches"] });
