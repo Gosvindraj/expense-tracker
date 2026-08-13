@@ -1,29 +1,30 @@
-import { useMemo, useState, type FormEvent } from "react";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getCategories,
   listExpenses,
-  updateExpense,
   deleteExpense,
+  updateExpense,
   invalidateExpenseData,
   type ExpenseFilters,
 } from "../api";
 import type { Category, Expense } from "../../shared/schemas";
 import { parseToMinor } from "../../shared/money";
-import { fmtAmount, fmtDay } from "../lib/format";
-import { CategoryField } from "../components/CategoryPicker";
+import { fmtAmount, fmtDayHeading, fmtDateShort } from "../lib/format";
+import { deleteExpenseWithUndo } from "../lib/expenseCache";
+import Icon from "../components/Icon";
+import { DateField } from "../components/Field";
+import ExpenseComposer from "../components/ExpenseComposer";
+import ExpenseRow from "../components/ExpenseRow";
+import CategoryPicker from "../components/CategoryPicker";
 import ConfirmSheet from "../components/ConfirmSheet";
+import Sheet from "../components/Sheet";
+import ErrorNote from "../components/ErrorNote";
+import { useToast } from "../components/Toast";
 
 const PAGE = 50;
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const shortDate = (iso: string) =>
-  `${Number(iso.slice(8, 10))} ${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(2, 4)}`;
+const shortDate = fmtDateShort;
 
 /** Human chips for every active filter, each with the patch that clears it. */
 function filterChips(
@@ -69,13 +70,38 @@ export default function ExpensesList({
   filters: ExpenseFilters;
   onFiltersChange: (f: ExpenseFilters) => void;
 }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: getCategories });
   const catById = useMemo(
     () => new Map((categoriesQuery.data ?? []).map((c) => [c.id, c])),
     [categoriesQuery.data],
   );
+  const [confirmBulk, setConfirmBulk] = useState(false);
 
   const [panelOpen, setPanelOpen] = useState(false);
+
+  // Search lives at the top of the screen now, not buried behind Filters →
+  // type → Apply. Local state drives the input; the committed value lands in
+  // `filters.q` after a pause so we aren't refetching on every keystroke.
+  const [search, setSearch] = useState(filters.q ?? "");
+  useEffect(() => {
+    if ((filters.q ?? "") === search.trim()) return;
+    const t = setTimeout(
+      () => onFiltersChange({ ...filters, q: search.trim() || undefined }),
+      350,
+    );
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+  // keep the box in step when filters are cleared from a chip
+  useEffect(() => {
+    setSearch(filters.q ?? "");
+  }, [filters.q]);
+
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkCat, setBulkCat] = useState(false);
 
   const expensesQuery = useInfiniteQuery({
     queryKey: ["expenses", filters],
@@ -110,8 +136,67 @@ export default function ExpensesList({
     filters.minMinor !== undefined || filters.maxMinor !== undefined,
   );
 
+  // infinite scroll: fetch when the sentinel below the list comes into view
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && expensesQuery.hasNextPage && !expensesQuery.isFetchingNextPage) {
+          expensesQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: "400px" }, // start early so it feels seamless
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [expensesQuery.hasNextPage, expensesQuery.isFetchingNextPage, expensesQuery]);
+
+  const exitSelection = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+
+  const toggle = (id: number) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      if (next.size === 0) setSelecting(false);
+      return next;
+    });
+
+  const selectedExpenses = items.filter((e) => selected.has(e.id));
+
+  const bulkDelete = useMutation({
+    mutationFn: async () => {
+      for (const e of selectedExpenses) await deleteExpense(e.id);
+    },
+    onSuccess: () => {
+      invalidateExpenseData(queryClient);
+      toast({ message: `Deleted ${selected.size} expense${selected.size === 1 ? "" : "s"}` });
+      exitSelection();
+      setConfirmBulk(false);
+    },
+  });
+
+  const bulkRecategorise = useMutation({
+    mutationFn: async (categoryId: number) => {
+      for (const e of selectedExpenses) await updateExpense(e.id, { categoryId });
+    },
+    onSuccess: () => {
+      invalidateExpenseData(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["recent-categories"] });
+      toast({ message: `Moved ${selected.size} expense${selected.size === 1 ? "" : "s"}` });
+      exitSelection();
+      setBulkCat(false);
+    },
+  });
+
   return (
     <div className="list-screen">
+      <h2>Expenses</h2>
       <header className="list-header">
         <div>
           <div className="list-sum">{fmtAmount(sumMinor)}</div>
@@ -124,6 +209,52 @@ export default function ExpensesList({
         </button>
       </header>
 
+      <div className="search-bar">
+        <Icon name="search" className="search-icon" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search notes…"
+          aria-label="Search expense notes"
+        />
+        {search && (
+          <button
+            type="button"
+            className="search-clear"
+            aria-label="Clear search"
+            onClick={() => setSearch("")}
+          >
+            <Icon name="close" />
+          </button>
+        )}
+      </div>
+
+      {selecting && (
+        <div className="select-bar">
+          <button type="button" className="quiet" onClick={exitSelection}>
+            Cancel
+          </button>
+          <span className="select-count">{selected.size} selected</span>
+          <button
+            type="button"
+            className="quiet"
+            disabled={selected.size === 0}
+            onClick={() => setBulkCat(true)}
+          >
+            Recategorise
+          </button>
+          <button
+            type="button"
+            className="danger"
+            disabled={selected.size === 0 || bulkDelete.isPending}
+            onClick={() => setConfirmBulk(true)}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
       {hasFilters && !panelOpen && (
         <div className="fchips">
           {filterChips(filters, catById).map((chip) => (
@@ -131,9 +262,10 @@ export default function ExpensesList({
               key={chip.key}
               type="button"
               className="fchip"
+              aria-label={`Clear filter: ${chip.label}`}
               onClick={() => onFiltersChange({ ...filters, ...chip.clear })}
             >
-              {chip.label} <span className="x">✕</span>
+              {chip.label} <Icon name="close" className="x" />
             </button>
           ))}
         </div>
@@ -148,8 +280,23 @@ export default function ExpensesList({
         />
       )}
 
-      {expensesQuery.isLoading && <p className="muted">Loading…</p>}
-      {expensesQuery.isError && <p className="error">{(expensesQuery.error as Error).message}</p>}
+      {expensesQuery.isLoading && (
+        <ul className="expense-list" aria-hidden="true">
+          {Array.from({ length: 8 }, (_, i) => (
+            <li key={i}>
+              <span className="row-btn">
+                <span className="icon sk" />
+                <span className="mid">
+                  <span className="sk sk-line sk-w38" />
+                  <span className="sk sk-line sk-sub sk-w55" />
+                </span>
+                <span className="sk sk-line sk-amount" />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ErrorNote error={expensesQuery.error} onRetry={() => expensesQuery.refetch()} />
       {!expensesQuery.isLoading && items.length === 0 && (
         <p className="muted">{hasFilters ? "Nothing matches these filters." : "No expenses yet."}</p>
       )}
@@ -157,46 +304,85 @@ export default function ExpensesList({
       {groups.map((g) => (
         <section key={g.day}>
           <h3 className="day-header">
-            <span>{fmtDay(g.items[0].spentAt)}</span>
+            <span>{fmtDayHeading(g.items[0].spentAt)}</span>
             <span>{fmtAmount(g.items.reduce((n, e) => n + e.amountMinor, 0))}</span>
           </h3>
           <ul className="expense-list">
-            {g.items.map((e) => {
-              const cat = catById.get(e.categoryId);
-              return (
-                <li key={e.id} onClick={() => setEditing(e)}>
-                  <span className="icon" style={{ background: `${cat?.color ?? "#8a8f98"}33` }}>
-                    {cat?.icon ?? "📦"}
-                  </span>
-                  <span className="mid">
-                    <span className="cat-name">{cat?.name ?? "Unknown"}</span>
-                    {e.note && <span className="note">{e.note}</span>}
-                  </span>
-                  <span className="amount">−{fmtAmount(e.amountMinor)}</span>
-                </li>
-              );
-            })}
+            {g.items.map((e) => (
+              <ExpenseRow
+                key={e.id}
+                expense={e}
+                category={catById.get(e.categoryId)}
+                selecting={selecting}
+                selected={selected.has(e.id)}
+                onOpen={() => setEditing(e)}
+                onToggleSelect={() => toggle(e.id)}
+                onStartSelecting={() => setSelecting(true)}
+                onDelete={() =>
+                  deleteExpenseWithUndo(queryClient, e, toast, `${fmtAmount(e.amountMinor)} expense`)
+                }
+              />
+            ))}
           </ul>
         </section>
       ))}
 
-      {expensesQuery.hasNextPage && (
-        <button
-          type="button"
-          className="load-more"
-          onClick={() => expensesQuery.fetchNextPage()}
-          disabled={expensesQuery.isFetchingNextPage}
-        >
-          {expensesQuery.isFetchingNextPage ? "Loading…" : `Load more (${items.length} of ${total})`}
-        </button>
+      {/* infinite scroll sentinel — replaces the old "Load more" button */}
+      <div ref={sentinel} className="list-sentinel">
+        {expensesQuery.isFetchingNextPage && <span className="muted">Loading more…</span>}
+        {!expensesQuery.hasNextPage && items.length > 0 && (
+          <span className="muted">All {total} expenses shown</span>
+        )}
+      </div>
+
+      {confirmBulk && (
+        <ConfirmSheet
+          title={`Delete ${selected.size} expense${selected.size === 1 ? "" : "s"}?`}
+          message="This can't be undone."
+          details={
+            <ul className="destroy-list">
+              <li>
+                <strong>{selected.size}</strong> expenses
+              </li>
+              <li>
+                totalling{" "}
+                <strong>
+                  {fmtAmount(selectedExpenses.reduce((n, e) => n + e.amountMinor, 0))}
+                </strong>
+              </li>
+            </ul>
+          }
+          confirmPhrase={selected.size > 100 ? "DELETE" : undefined}
+          pending={bulkDelete.isPending}
+          error={bulkDelete.error?.message}
+          onConfirm={() => bulkDelete.mutate()}
+          onClose={() => {
+            bulkDelete.reset();
+            setConfirmBulk(false);
+          }}
+        />
+      )}
+
+      {bulkCat && (
+        <CategoryPicker
+          categories={(categoriesQuery.data ?? []).filter((c) => !c.archived)}
+          selectedId={null}
+          onSelect={(id) => {
+            if (id !== null) bulkRecategorise.mutate(id);
+          }}
+          onClose={() => setBulkCat(false)}
+        />
       )}
 
       {editing && (
-        <EditModal
-          expense={editing}
-          categories={(categoriesQuery.data ?? []).filter((c) => !c.archived || c.id === editing.categoryId)}
-          onClose={() => setEditing(null)}
-        />
+        <Sheet title="Edit expense" variant="full" onClose={() => setEditing(null)}>
+          <ExpenseComposer
+            key={editing.id}
+            expense={editing}
+            onDone={() => setEditing(null)}
+            onCancel={() => setEditing(null)}
+          />
+        </Sheet>
       )}
     </div>
   );
@@ -248,8 +434,8 @@ function FilterPanel({
   return (
     <form className="filter-panel" onSubmit={submit}>
       <div className="row">
-        <label>From <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-        <label>To <input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+        <DateField label="From" value={from} onChange={setFrom} placeholder="Any date" />
+        <DateField label="To" value={to} onChange={setTo} placeholder="Any date" />
       </div>
       <div className="filter-cats">
         {categories.map((c) => (
@@ -270,110 +456,11 @@ function FilterPanel({
         <input placeholder="Min amount" inputMode="decimal" value={min} onChange={(e) => setMin(e.target.value)} />
         <input placeholder="Max amount" inputMode="decimal" value={max} onChange={(e) => setMax(e.target.value)} />
       </div>
-      {err && <p className="error">{err}</p>}
+      <ErrorNote error={err} />
       <div className="filter-actions">
         <button type="button" className="quiet" onClick={clear}>Clear</button>
         <button type="submit" className="primary">Apply</button>
       </div>
     </form>
-  );
-}
-
-function EditModal({
-  expense,
-  categories,
-  onClose,
-}: {
-  expense: Expense;
-  categories: Category[];
-  onClose: () => void;
-}) {
-  const queryClient = useQueryClient();
-  const [amount, setAmount] = useState(String(expense.amountMinor / 100));
-  const [categoryId, setCategoryId] = useState(expense.categoryId);
-  const [note, setNote] = useState(expense.note);
-  const [when, setWhen] = useState(expense.spentAt.slice(0, 10)); // date only; time preserved
-  const [err, setErr] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const done = () => {
-    invalidateExpenseData(queryClient);
-    queryClient.invalidateQueries({ queryKey: ["recent-categories"] });
-    onClose();
-  };
-
-  const saveMutation = useMutation({
-    mutationFn: () => {
-      const minor = parseToMinor(amount);
-      if (minor === null || minor <= 0) throw new Error("Amount must be a positive number");
-      return updateExpense(expense.id, {
-        amountMinor: minor,
-        categoryId,
-        note: note.trim(),
-        spentAt: `${when} ${expense.spentAt.slice(11)}`,
-      });
-    },
-    onSuccess: done,
-    onError: (e: Error) => setErr(e.message),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteExpense(expense.id),
-    onSuccess: done,
-    onError: (e: Error) => setErr(e.message),
-  });
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Edit expense</h3>
-        <label>Amount
-          <input value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value)} />
-        </label>
-        <label>Category
-          <CategoryField
-            categories={categories}
-            value={categoryId}
-            onChange={(id) => {
-              if (id !== null) setCategoryId(id);
-            }}
-          />
-        </label>
-        <label>Note
-          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
-        </label>
-        <label>When
-          <input type="date" value={when} onChange={(e) => setWhen(e.target.value)} />
-        </label>
-        {err && <p className="error">{err}</p>}
-        <div className="sheet-actions">
-          <button
-            type="button"
-            className="primary"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
-          >
-            {saveMutation.isPending ? "Saving…" : "Save"}
-          </button>
-          <button type="button" className="quiet" onClick={onClose}>Cancel</button>
-          <button
-            type="button"
-            className="danger sheet-delete"
-            onClick={() => setConfirmDelete(true)}
-            disabled={deleteMutation.isPending}
-          >
-            Delete expense
-          </button>
-        </div>
-        {confirmDelete && (
-          <ConfirmSheet
-            title="Delete this expense?"
-            message={`${fmtAmount(expense.amountMinor)} — this can't be undone.`}
-            onConfirm={() => deleteMutation.mutate()}
-            onClose={() => setConfirmDelete(false)}
-          />
-        )}
-      </div>
-    </div>
   );
 }
