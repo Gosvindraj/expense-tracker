@@ -25,11 +25,44 @@ import type {
   RecurringUpdate,
 } from "../shared/schemas";
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * Default per-request deadline.
+ *
+ * Without one, `fetch` can hang for the OS TCP timeout — 30 s to 2 min — while
+ * the UI sits on "Saving…" with no way out. That's not a hypothetical: a save
+ * with the network down did exactly this. The try/catch below never fired,
+ * because a request that never settles never throws.
+ */
+const TIMEOUT_MS = 12_000;
+/** Import and backup move real work; they get room to finish. */
+export const LONG_TIMEOUT_MS = 90_000;
+
+/** Marker for a user-initiated cancel, so callers can stay quiet about it. */
+export class CancelledError extends Error {
+  constructor() {
+    super("Cancelled");
+    this.name = "CancelledError";
+  }
+}
+
+async function api<T>(
+  path: string,
+  init?: RequestInit,
+  opts?: { timeoutMs?: number },
+): Promise<T> {
+  const deadline = AbortSignal.timeout(opts?.timeoutMs ?? TIMEOUT_MS);
+  // a caller-supplied signal (a Cancel button) races the deadline
+  const signal = init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline;
+
   let res: Response;
   try {
-    res = await fetch(path, init);
-  } catch {
+    res = await fetch(path, { ...init, signal });
+  } catch (err) {
+    const name = (err as Error)?.name;
+    if (init?.signal?.aborted) throw new CancelledError();
+    if (name === "TimeoutError") {
+      throw new Error("The server didn't respond in time. Check your connection and try again.");
+    }
     // fetch() throws (rather than resolving with a response) when a request gets
     // blocked before completing — an expired Access session bouncing to login, a
     // stale cached redirect, or a dropped connection all look identical here. The
@@ -122,8 +155,50 @@ export function listExpenses(
   return api<ExpenseListResult>(`/api/expenses?${p}`);
 }
 
-export const createExpense = (input: ExpenseCreate) =>
-  api<Expense>("/api/expenses", json("POST", input));
+export interface NoteSuggestion {
+  note: string;
+  n: number;
+  categoryId: number;
+  amountMinor: number;
+}
+
+/** Past notes matching `q`, with the category and amount they last carried. */
+export const getNoteSuggestions = (q: string) =>
+  api<NoteSuggestion[]>(`/api/expenses/notes?q=${encodeURIComponent(q)}`);
+
+export const createExpense = (input: ExpenseCreate, signal?: AbortSignal) =>
+  api<Expense>("/api/expenses", { ...json("POST", input), signal });
+
+/**
+ * Did a create that we stopped waiting for actually land?
+ *
+ * Aborting a fetch — on timeout or via Cancel — ends the client's wait, not the
+ * server's work. Reporting a clean failure in that case is a duplicate-expense
+ * generator: the user sees an error, retries, and ends up with two rows. So we
+ * look for the exact payload we sent before deciding it failed.
+ *
+ * This works without an idempotency key because we're not matching a retry
+ * against an earlier attempt — we know precisely what we posted, down to the
+ * second, and only need to know whether that specific row exists.
+ */
+export async function findMatchingExpense(input: ExpenseCreate): Promise<Expense | null> {
+  const day = input.spentAt.slice(0, 10);
+  const p = new URLSearchParams({
+    from: day,
+    to: day,
+    categories: String(input.categoryId),
+    minMinor: String(input.amountMinor),
+    maxMinor: String(input.amountMinor),
+    limit: "50",
+    offset: "0",
+  });
+  try {
+    const res = await api<ExpenseListResult>(`/api/expenses?${p}`);
+    return res.items.find((e) => e.spentAt === input.spentAt) ?? null;
+  } catch {
+    return null; // still unreachable — fall back to reporting the failure
+  }
+}
 export const updateExpense = (id: number, input: ExpenseUpdate) =>
   api<Expense>(`/api/expenses/${id}`, json("PATCH", input));
 export const deleteExpense = (id: number) =>
@@ -164,10 +239,15 @@ export const getStatsCompare = (
 
 // ---------- import ----------
 
+// parsing and inserting 1,500 rows takes real time — don't cut these off
 export const importPreview = (input: ImportPreviewRequest) =>
-  api<ImportPreviewResult>("/api/import/preview", json("POST", input));
+  api<ImportPreviewResult>("/api/import/preview", json("POST", input), {
+    timeoutMs: LONG_TIMEOUT_MS,
+  });
 export const importCommit = (input: ImportCommitRequest) =>
-  api<ImportCommitResult>("/api/import/commit", json("POST", input));
+  api<ImportCommitResult>("/api/import/commit", json("POST", input), {
+    timeoutMs: LONG_TIMEOUT_MS,
+  });
 export const getImportBatches = () => api<ImportBatch[]>("/api/import/batches");
 export const deleteImportBatch = (id: number) =>
   api<{ ok: true }>(`/api/import/batches/${id}`, { method: "DELETE" });
@@ -199,7 +279,45 @@ export interface BackupObject {
 }
 
 export const getBackups = () => api<BackupObject[]>("/api/backups");
+
+/**
+ * Save a server file to disk.
+ *
+ * A plain `<a download>` is unreliable in an installed standalone PWA — the
+ * navigation has nowhere to go. Fetching to a blob and clicking a synthetic
+ * link keeps it inside the app.
+ */
+export async function downloadFile(url: string, filename: string) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(LONG_TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`Download failed (${res.status})`);
+  const blob = await res.blob();
+
+  // iOS has no download folder to speak of: in a standalone PWA the `download`
+  // attribute is unreliable and can fail silently. The share sheet is the
+  // platform's actual "save a file" affordance, so prefer it where offered.
+  const file = new File([blob], filename, { type: blob.type });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return;
+    } catch (e) {
+      if ((e as Error)?.name === "AbortError") return; // user dismissed the sheet
+      /* otherwise fall through to the anchor */
+    }
+  }
+
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10_000);
+}
 export const runBackupNow = () =>
-  api<{ key: string; bytes: number; expenses: number; kept: number }>("/api/backups/run", {
-    method: "POST",
-  });
+  api<{ key: string; bytes: number; expenses: number; kept: number }>(
+    "/api/backups/run",
+    { method: "POST" },
+    { timeoutMs: LONG_TIMEOUT_MS },
+  );

@@ -99,6 +99,41 @@ function expenseFilters(q: ReturnType<typeof expenseListQuerySchema.parse>) {
   return conds.length ? and(...conds) : undefined;
 }
 
+/**
+ * Note suggestions for the composer.
+ *
+ * Each distinct note comes back with how often it's been used and the
+ * category/amount from its most recent occurrence — recency beats mode here,
+ * since a subscription that changed price should suggest the new one.
+ *
+ * Server-side because suggestions have to see all history, not the pages the
+ * client happens to have loaded.
+ */
+app.get("/expenses/notes", async (c) => {
+  const db = drizzle(c.env.DB);
+  const q = (c.req.query("q") ?? "").trim().toLowerCase();
+  const rows = await db.all<{
+    note: string;
+    n: number;
+    categoryId: number;
+    amountMinor: number;
+  }>(sql`
+    SELECT e.note AS note,
+           COUNT(*) AS n,
+           (SELECT e2.category_id FROM expenses e2
+             WHERE e2.note = e.note ORDER BY e2.spent_at DESC LIMIT 1) AS categoryId,
+           (SELECT e2.amount_minor FROM expenses e2
+             WHERE e2.note = e.note ORDER BY e2.spent_at DESC LIMIT 1) AS amountMinor
+      FROM expenses e
+     WHERE e.note <> ''
+       AND (${q} = '' OR lower(e.note) LIKE ${`%${q}%`})
+     GROUP BY e.note
+     ORDER BY n DESC, MAX(e.spent_at) DESC
+     LIMIT 8
+  `);
+  return c.json(rows);
+});
+
 app.get("/expenses", zValidator("query", expenseListQuerySchema), async (c) => {
   const db = drizzle(c.env.DB);
   const q = c.req.valid("query");
