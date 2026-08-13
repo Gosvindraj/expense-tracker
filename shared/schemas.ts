@@ -13,9 +13,28 @@ export const categoryCreateSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-export const categoryUpdateSchema = categoryCreateSchema
-  .partial()
-  .extend({ archived: z.boolean().optional() });
+/**
+ * PATCH bodies are written explicitly, NOT as `createSchema.partial()`.
+ *
+ * `.partial()` only makes keys optional — a field declared with `.default()`
+ * still emits that default when the key is absent. Since the handlers do
+ * `.set(validatedBody)`, a PATCH of `{ sortOrder }` was silently also writing
+ * `icon: "📦"` and `color: "#8a8f98"`, wiping real values. That destroyed the
+ * icon and colour of 8 categories on 2026-08-14 during a reorder.
+ *
+ * Any new field here must be `.optional()` with no `.default()`.
+ */
+export const categoryUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(60).optional(),
+  parentId: z.number().int().positive().nullable().optional(),
+  icon: z.string().min(1).max(16).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "must be a #rrggbb hex color")
+    .optional(),
+  sortOrder: z.number().int().optional(),
+  archived: z.boolean().optional(),
+});
 
 export type CategoryCreate = z.infer<typeof categoryCreateSchema>;
 export type CategoryUpdate = z.infer<typeof categoryUpdateSchema>;
@@ -44,7 +63,15 @@ export const expenseCreateSchema = z.object({
   spentAt: spentAtSchema,
 });
 
-export const expenseUpdateSchema = expenseCreateSchema.partial();
+/** Explicit — see the note on categoryUpdateSchema. `note` has a default on
+ * create, so `.partial()` here meant a PATCH of `{ categoryId }` (bulk
+ * recategorise) would blank the note. */
+export const expenseUpdateSchema = z.object({
+  categoryId: z.number().int().positive().optional(),
+  amountMinor: z.number().int().positive().optional(),
+  note: z.string().trim().max(500).optional(),
+  spentAt: spentAtSchema.optional(),
+});
 
 export type ExpenseCreate = z.infer<typeof expenseCreateSchema>;
 export type ExpenseUpdate = z.infer<typeof expenseUpdateSchema>;
@@ -95,9 +122,13 @@ export const budgetCreateSchema = z.object({
   period: z.enum(["monthly", "yearly"]).default("monthly"),
 });
 
-export const budgetUpdateSchema = budgetCreateSchema
-  .partial()
-  .extend({ active: z.boolean().optional() });
+/** Explicit — see the note on categoryUpdateSchema. */
+export const budgetUpdateSchema = z.object({
+  categoryId: z.number().int().positive().nullable().optional(),
+  amountMinor: z.number().int().positive().optional(),
+  period: z.enum(["monthly", "yearly"]).optional(),
+  active: z.boolean().optional(),
+});
 
 export type BudgetCreate = z.infer<typeof budgetCreateSchema>;
 export type BudgetUpdate = z.infer<typeof budgetUpdateSchema>;
@@ -128,9 +159,19 @@ export const recurringCreateSchema = z.object({
   endOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
 });
 
-export const recurringUpdateSchema = recurringCreateSchema
-  .partial()
-  .extend({ active: z.boolean().optional() });
+/** Explicit — see the note on categoryUpdateSchema. Pausing a rule sends only
+ * `{ active }`, which previously also reset note, interval and endOn. */
+export const recurringUpdateSchema = z.object({
+  categoryId: z.number().int().positive().optional(),
+  amountMinor: z.number().int().positive().optional(),
+  note: z.string().trim().max(500).optional(),
+  frequency: z.enum(["weekly", "monthly", "yearly"]).optional(),
+  interval: z.number().int().min(1).max(24).optional(),
+  nextDueOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  anchorDay: z.number().int().min(1).max(31).nullable().optional(),
+  active: z.boolean().optional(),
+});
 
 export type RecurringCreate = z.infer<typeof recurringCreateSchema>;
 export type RecurringUpdate = z.infer<typeof recurringUpdateSchema>;
@@ -243,4 +284,8 @@ export interface ImportBatch {
   rowCount: number;
   importedAt: string;
   expenseCount: number; // rows currently in DB from this batch
+  // what a rollback would actually destroy — shown in the confirm
+  sumMinor: number;
+  minSpentAt: string | null;
+  maxSpentAt: string | null;
 }
