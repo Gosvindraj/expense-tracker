@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   importPreview,
@@ -7,13 +7,18 @@ import {
   deleteImportBatch,
   getBackups,
   runBackupNow,
+  downloadFile,
   invalidateExpenseData,
 } from "../api";
 import { getCategories } from "../api";
-import type { ImportPreviewResult, ImportCommitResult } from "../../shared/schemas";
-import { fmtAmount } from "../lib/format";
+import type { ImportPreviewResult, ImportCommitResult, ImportBatch } from "../../shared/schemas";
+import { fmtAmount, fmtDateTime } from "../lib/format";
+import { SelectField } from "../components/Field";
 import Categories from "./Categories";
 import ConfirmSheet from "../components/ConfirmSheet";
+import { useToast } from "../components/Toast";
+import { onNavigate } from "../lib/nav";
+import ErrorNote from "../components/ErrorNote";
 
 type Mapping = Record<string, "create" | number>;
 type Segment = "backups" | "import" | "categories";
@@ -31,6 +36,9 @@ function BackupsCard() {
     },
     onError: (e: Error) => setErr(e.message),
   });
+
+  const save = (url: string, filename: string) =>
+    downloadFile(url, filename).catch((e: Error) => setErr(e.message));
 
   const backups = backupsQuery.data ?? [];
   const latest = backups[0];
@@ -62,7 +70,7 @@ function BackupsCard() {
           No snapshots yet — nightly backup runs at 04:00 MYT, or run one now.
         </p>
       )}
-      {err && <p className="error">{err}</p>}
+      <ErrorNote error={err} />
       <div className="backup-actions">
         <button
           type="button"
@@ -72,24 +80,63 @@ function BackupsCard() {
         >
           {runMutation.isPending ? "Backing up…" : "Back up now"}
         </button>
-        <a className="btn-link" href="/api/export?format=json" download>
+        {/* fetch-to-blob, not <a download> — the latter doesn't work reliably
+            once the PWA is installed and running standalone */}
+        <button type="button" onClick={() => save("/api/export?format=json", "expenses.json")}>
           Export JSON
-        </a>
-        <a className="btn-link" href="/api/export?format=csv" download>
+        </button>
+        <button type="button" onClick={() => save("/api/export?format=csv", "expenses.csv")}>
           Export CSV
-        </a>
+        </button>
       </div>
+
+      {backups.length > 0 && (
+        <>
+          <h4 className="backups-heading">Snapshots</h4>
+          <ul className="cat-list">
+            {backups.map((b) => {
+              const name = b.key.split("/").pop() ?? b.key;
+              return (
+                <li key={b.key}>
+                  <span className="mid">
+                    <span>{fmtDateTime(b.uploaded.replace("T", " "))}</span>
+                    <span className="muted row-sub">
+                      {name} · {(b.size / 1024).toFixed(0)} KB
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="small-btn"
+                    onClick={() => save(`/api/backups/${name}`, name)}
+                  >
+                    Download
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {/* the restore path is a CLI script by design — a "replace the whole
+              database" button doesn't belong in a tab you browse casually.
+              Say so, rather than leaving the card looking like a dead end. */}
+          <p className="muted restore-note">
+            To restore a snapshot, download it and run{" "}
+            <code>node scripts/restore-snapshot.mjs &lt;file&gt; --local|--remote</code>. Full
+            runbook in the README.
+          </p>
+        </>
+      )}
     </div>
   );
 }
 
 export default function Import() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: getCategories });
   const batchesQuery = useQuery({ queryKey: ["import-batches"], queryFn: getImportBatches });
 
-  const [seg, setSeg] = useState<Segment>("backups");
-  const [confirmBatch, setConfirmBatch] = useState<{ id: number; count: number } | null>(null);
+  const [seg, setSeg] = useState<Segment>("categories");
+  const [confirmBatch, setConfirmBatch] = useState<ImportBatch | null>(null);
   const [csv, setCsv] = useState<string | null>(null);
   const [filename, setFilename] = useState("");
   const [preview, setPreview] = useState<ImportPreviewResult | null>(null);
@@ -97,6 +144,9 @@ export default function Import() {
   const [dupes, setDupes] = useState<"skip" | "include">("skip");
   const [result, setResult] = useState<ImportCommitResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // a "Manage categories" jump from the picker lands on the right segment
+  useEffect(() => onNavigate(({ segment }) => segment && setSeg(segment)), []);
 
   const invalidateData = () => {
     invalidateExpenseData(queryClient);
@@ -132,9 +182,18 @@ export default function Import() {
   });
 
   const rollbackMutation = useMutation({
-    mutationFn: deleteImportBatch,
-    onSuccess: invalidateData,
-    onError: (e: Error) => setErr(e.message),
+    // snapshot first: this is the widest-blast action in the app, and it used to
+    // be undoable only by finding a backup nobody told you existed
+    mutationFn: async (id: number) => {
+      await runBackupNow();
+      return deleteImportBatch(id);
+    },
+    onSuccess: () => {
+      invalidateData();
+      queryClient.invalidateQueries({ queryKey: ["backups"] });
+      setConfirmBatch(null);
+      toast({ message: "Import rolled back — a snapshot was saved first" });
+    },
   });
 
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
@@ -157,9 +216,9 @@ export default function Import() {
       <div className="segmented">
         {(
           [
-            ["backups", "Backups"],
-            ["import", "Import"],
             ["categories", "Categories"],
+            ["import", "Import"],
+            ["backups", "Backups"],
           ] as [Segment, string][]
         ).map(([id, label]) => (
           <button
@@ -187,7 +246,7 @@ export default function Import() {
         <input type="file" accept=".csv,text/csv" onChange={onFile} hidden />
       </label>
 
-      {err && <p className="error">{err}</p>}
+      <ErrorNote error={err} />
 
       {result && (
         <div className="card success">
@@ -263,22 +322,20 @@ export default function Import() {
                 <span className="mid">
                   {pc.name} <span className="muted">({pc.count})</span>
                 </span>
-                <select
+                <SelectField
+                  title={`Map "${pc.name}" to`}
                   value={String(mapping[pc.name] ?? "create")}
-                  onChange={(e) =>
+                  options={[
+                    { value: "create", label: "Create new category", icon: "＋" },
+                    ...cats.map((c) => ({ value: String(c.id), label: c.name, icon: c.icon })),
+                  ]}
+                  onChange={(v) =>
                     setMapping((m) => ({
                       ...m,
-                      [pc.name]: e.target.value === "create" ? "create" : Number(e.target.value),
+                      [pc.name]: v === "create" ? "create" : Number(v),
                     }))
                   }
-                >
-                  <option value="create">＋ Create new category</option>
-                  {cats.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.icon} {c.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             ))}
           </div>
@@ -297,7 +354,10 @@ export default function Import() {
       )}
 
       <h3>Past imports</h3>
-      {(batchesQuery.data ?? []).length === 0 && <p className="muted">None yet.</p>}
+      {batchesQuery.isLoading && <div className="card sk sk-card-sm" />}
+      {!batchesQuery.isLoading && (batchesQuery.data ?? []).length === 0 && (
+        <p className="muted">None yet.</p>
+      )}
       <ul className="cat-list">
         {(batchesQuery.data ?? []).map((b) => (
           <li key={b.id}>
@@ -305,15 +365,15 @@ export default function Import() {
               <span>
                 #{b.id} — {b.filename}
               </span>
-              <span className="muted" style={{ fontSize: "0.8rem" }}>
-                {b.importedAt} · {b.expenseCount} expenses in DB
+              <span className="muted row-sub">
+                {fmtDateTime(b.importedAt)} · {b.expenseCount} expenses in DB
               </span>
             </span>
             <button
               type="button"
               className="danger"
               disabled={rollbackMutation.isPending}
-              onClick={() => setConfirmBatch({ id: b.id, count: b.expenseCount })}
+              onClick={() => setConfirmBatch(b)}
             >
               Roll back
             </button>
@@ -326,10 +386,33 @@ export default function Import() {
       {confirmBatch && (
         <ConfirmSheet
           title={`Roll back batch #${confirmBatch.id}?`}
-          message={`This deletes its ${confirmBatch.count} expenses.`}
+          message="This permanently deletes every expense that came from this import. A snapshot is saved first."
+          details={
+            <ul className="destroy-list">
+              <li>
+                <strong>{confirmBatch.expenseCount}</strong> expenses
+              </li>
+              <li>
+                totalling <strong>{fmtAmount(confirmBatch.sumMinor)}</strong>
+              </li>
+              {confirmBatch.minSpentAt && confirmBatch.maxSpentAt && (
+                <li>
+                  spanning <strong>{confirmBatch.minSpentAt.slice(0, 10)}</strong> →{" "}
+                  <strong>{confirmBatch.maxSpentAt.slice(0, 10)}</strong>
+                </li>
+              )}
+            </ul>
+          }
+          // above ~100 rows this stops being a tap and starts being a decision
+          confirmPhrase={confirmBatch.expenseCount > 100 ? "ROLL BACK" : undefined}
           confirmLabel="Roll back"
+          pending={rollbackMutation.isPending}
+          error={rollbackMutation.error?.message}
           onConfirm={() => rollbackMutation.mutate(confirmBatch.id)}
-          onClose={() => setConfirmBatch(null)}
+          onClose={() => {
+            rollbackMutation.reset();
+            setConfirmBatch(null);
+          }}
         />
       )}
     </div>

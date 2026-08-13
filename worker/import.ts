@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { zValidator } from "@hono/zod-validator";
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, max, min, sum } from "drizzle-orm";
 import { categories, expenses, importBatches } from "./db/schema";
 import {
   importPreviewRequestSchema,
@@ -259,15 +259,29 @@ app.post("/commit", zValidator("json", importCommitRequestSchema), async (c) => 
 app.get("/batches", async (c) => {
   const db = drizzle(c.env.DB);
   const batches = await db.select().from(importBatches).orderBy(desc(importBatches.id));
+  // sum and date range travel with the count so the rollback confirm can state
+  // exactly what it destroys, not just how many rows
   const counts = await db
-    .select({ batchId: expenses.importBatchId, n: count() })
+    .select({
+      batchId: expenses.importBatchId,
+      n: count(),
+      sumMinor: sum(expenses.amountMinor),
+      minSpentAt: min(expenses.spentAt),
+      maxSpentAt: max(expenses.spentAt),
+    })
     .from(expenses)
     .groupBy(expenses.importBatchId);
-  const byBatch = new Map(counts.map((r) => [r.batchId, r.n]));
-  const result: ImportBatch[] = batches.map((b) => ({
-    ...b,
-    expenseCount: byBatch.get(b.id) ?? 0,
-  }));
+  const byBatch = new Map(counts.map((r) => [r.batchId, r]));
+  const result: ImportBatch[] = batches.map((b) => {
+    const agg = byBatch.get(b.id);
+    return {
+      ...b,
+      expenseCount: agg?.n ?? 0,
+      sumMinor: Number(agg?.sumMinor ?? 0),
+      minSpentAt: agg?.minSpentAt ?? null,
+      maxSpentAt: agg?.maxSpentAt ?? null,
+    };
+  });
   return c.json(result);
 });
 

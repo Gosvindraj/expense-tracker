@@ -67,6 +67,25 @@ app.post("/backups/run", async (c) => {
   return c.json(result, 201);
 });
 
+/**
+ * Download one snapshot.
+ *
+ * Read-only on purpose. Restoring stays with `scripts/restore-snapshot.mjs`,
+ * which replaces the whole database — not something that should sit behind a
+ * button in a tab you browse casually. This gets the file onto disk so that
+ * script has something to work with without going digging in R2.
+ */
+app.get("/backups/:name{.+}", async (c) => {
+  const name = c.req.param("name");
+  const key = name.startsWith(PREFIX) ? name : `${PREFIX}${name}`;
+  const obj = await c.env.BACKUPS.get(key);
+  if (!obj) return c.json({ error: "snapshot not found" }, 404);
+  return c.body(obj.body, 200, {
+    "Content-Type": "application/json",
+    "Content-Disposition": `attachment; filename="${key.split("/").pop()}"`,
+  });
+});
+
 app.get("/export", async (c) => {
   const db = drizzle(c.env.DB);
   const format = c.req.query("format") ?? "json";

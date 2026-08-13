@@ -23,7 +23,8 @@
 
   --text: #f2f4f8;
   --text-2: #9aa1b0;
-  --text-3: #5d6472;
+  /* was #5d6472 — 3.2:1 on --bg, under the 4.5:1 AA floor. Now ~5.0:1. */
+  --text-3: #7b8394;
 
   --accent: #7c6cf6;
   --accent-soft: rgba(124, 108, 246, 0.14);
@@ -70,6 +71,12 @@ input,
 textarea {
   user-select: text;
   -webkit-user-select: text;
+}
+
+.chart-scroll svg:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: -2px;
+  border-radius: 8px;
 }
 
 .chart-wrap svg {
@@ -174,6 +181,286 @@ button {
 
 button:active {
   transform: scale(0.96);
+}
+
+/* ---------- icon set ---------- */
+
+.icon-svg {
+  width: 1.05em;
+  height: 1.05em;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* ---------- button vocabulary ----------
+   Four roles, one look each. Everything else is a distinct component
+   (chip, key, row, tile), not a button variant. */
+
+/* .primary — the one affirmative action in a view */
+/* .quiet   — secondary, low emphasis */
+/* .danger  — destructive; .danger.solid when it's the confirming action */
+/* .btn-icon — square, icon-only */
+
+button.quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-2);
+}
+
+button.btn-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+button.btn-icon .icon-svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* ---------- form controls ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.field-label {
+  font-size: 0.74rem;
+  font-weight: 550;
+  color: var(--text-2);
+}
+
+.field-wrap {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.field-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--r-input);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-weight: 500;
+  text-align: left;
+  min-height: 2.75rem;
+}
+
+.field-trigger .field-icon {
+  color: var(--text-3);
+}
+
+.field-trigger .chev {
+  margin-left: auto;
+  color: var(--text-3);
+}
+
+.field-trigger.empty .field-value {
+  color: var(--text-3);
+}
+
+.field-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The native input covers the styled row and takes the tap itself, so iOS
+   opens its own picker. Invisible, but a real target — not a 1px decoy. */
+.field-native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  /* iOS shrinks the tap area of a date input to its text unless stretched */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* the visual row is decoration now; the input above it is the control */
+.field-trigger {
+  pointer-events: none;
+}
+
+/* focus ring belongs on the row the user sees */
+.field-native:focus-visible + .field-trigger,
+.field-wrap:has(.field-native:focus-visible) .field-trigger {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-input);
+  padding: 0.2rem;
+  min-height: 2.75rem;
+}
+
+.stepper button {
+  width: 2.3rem;
+  height: 2.3rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-color: transparent;
+  background: var(--surface-3);
+}
+
+.stepper button:disabled {
+  opacity: 0.4;
+}
+
+.stepper-value {
+  flex: 1;
+  text-align: center;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper-suffix {
+  font-weight: 500;
+  color: var(--text-2);
+  font-size: 0.85rem;
+}
+
+/* ---------- shared spacing, replacing inline style={{}} ---------- */
+
+.section-gap {
+  margin-top: 1.25rem;
+}
+
+.card-gap {
+  margin-top: 0.75rem;
+}
+
+.card-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.row-sub {
+  font-size: 0.78rem;
+}
+
+.stats-cat-filter {
+  margin-bottom: 0.75rem;
+}
+
+.cmp-pickers {
+  margin-bottom: 0.75rem;
+}
+
+/* ---------- accessibility baseline ---------- */
+
+/* Keyboard focus was invisible app-wide: inputs set `outline: none` and nothing
+   else defined a ring. :focus-visible keeps mouse and touch presses clean. */
+:where(button, input, select, textarea, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+/* Touch targets: measured against Android's 48dp, several controls sat at
+   25–37px. Expand the hit area with a centred overlay instead of resizing the
+   painted control. Vertical-only where horizontal neighbours are tight, so
+   expanded areas can't steal a neighbour's tap. */
+.cat-chip,
+.fchip,
+.small-btn,
+.bucket-switch button,
+.filter-toggle {
+  position: relative;
+}
+
+.cat-chip::after,
+.fchip::after,
+.small-btn::after,
+.bucket-switch button::after,
+.filter-toggle::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  button:active,
+  .key:active,
+  .tabbar .fab:active {
+    transform: none;
+  }
+}
+
+/* ---------- list rows as real buttons ---------- */
+
+/* Rows used to be `<li onClick>` — unfocusable and not keyboard-activatable.
+   The layout moves onto an inner button so the row looks identical. */
+.expense-list li:has(> .row-btn),
+.cat-list li:has(> .row-btn) {
+  padding: 0;
+}
+
+.row-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  background: none;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+/* rows shouldn't shrink like a chip — they highlight instead */
+.row-btn:active {
+  transform: none;
+  background: var(--surface-2);
+}
+
+.row-btn:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: -2px;
 }
 
 button.primary {
@@ -377,6 +664,19 @@ input[type="datetime-local"] {
   min-height: 100%;
 }
 
+/* On a short viewport — or with the keyboard up — the flexible gap above
+   .add-meta collapses and the note row and keypad start fighting. Below this
+   height the composer just scrolls. */
+@media (max-height: 640px) {
+  .add-screen {
+    min-height: auto;
+  }
+
+  .add-meta {
+    margin-top: 1rem;
+  }
+}
+
 .amount-display {
   display: flex;
   align-items: baseline;
@@ -404,6 +704,86 @@ input[type="datetime-local"] {
 
 .amount-display .value.long {
   font-size: 2rem;
+}
+
+/* one-tap repeat of the most recent expense */
+.repeat-last {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin-bottom: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  color: var(--accent-hover);
+  font-size: 0.85rem;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.repeat-last .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+/* --- note autocomplete --- */
+
+.note-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.note-field input {
+  width: 100%;
+}
+
+.note-suggestions {
+  position: absolute;
+  bottom: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  border-radius: var(--r-input);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.note-suggestions button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border-radius: 9px;
+  background: transparent;
+  border-color: transparent;
+  text-align: left;
+}
+
+.note-suggestions button:active {
+  background: var(--surface-2);
+}
+
+.sg-note {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sg-meta {
+  font-size: 0.72rem;
+  color: var(--text-2);
 }
 
 .calc-preview {
@@ -475,11 +855,36 @@ input[type="datetime-local"] {
   margin-top: auto;
 }
 
+/* number pad and operator column, sized so both blocks end level */
 .keypad {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 3fr 1fr;
   gap: 0.45rem;
   margin-bottom: 0.9rem;
+}
+
+.keypad-nums {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+}
+
+/* five rows in the same height as the pad's four */
+.keypad-ops {
+  display: grid;
+  grid-template-rows: repeat(5, 1fr);
+  gap: 0.45rem;
+}
+
+.keypad-ops .key {
+  padding: 0;
+  font-size: 1.2rem;
+}
+
+.key.eq {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
 }
 
 .key {
@@ -511,6 +916,572 @@ input[type="datetime-local"] {
   border: none;
   color: white;
   border-radius: 16px;
+}
+
+/* ---------- the same composer, opened over a list row to edit ---------- */
+
+.composer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  max-width: 520px;
+  margin: 0 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.1rem 1.1rem calc(1.1rem + env(safe-area-inset-bottom));
+  animation: sheet-up 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.composer-overlay > .add-screen {
+  flex: 1;
+}
+
+.composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.composer-bar h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.composer-bar button {
+  background: none;
+  border: none;
+  padding: 0.3rem 0;
+  font-size: 0.9rem;
+  font-weight: 550;
+}
+
+.composer-bar .quiet {
+  color: var(--text-2);
+}
+
+.composer-bar .danger {
+  color: var(--red);
+}
+
+/* ============================================================
+   Categories: reordering, custom colour, emoji search
+   ============================================================ */
+
+/* live preview of the row you're editing — icon and colour changes were
+   otherwise invisible until after saving */
+.cat-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--r-input);
+  background: var(--surface-2);
+}
+
+.cat-preview .icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  min-width: 2.4rem;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+}
+
+.cat-preview-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reorder-row {
+  display: flex;
+  align-items: center;
+  padding: 0 !important;
+}
+
+.reorder-row .row-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.reorder-actions {
+  display: flex;
+  flex-shrink: 0;
+  padding-right: 0.35rem;
+}
+
+.reorder-actions .icon-act:disabled {
+  opacity: 0.25;
+}
+
+/* the custom swatch sits in the dot row and matches its size */
+.color-custom {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  border: 0.525rem solid transparent;
+  background-clip: content-box;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  outline: 2px dashed var(--border-strong);
+  outline-offset: -0.525rem;
+}
+
+.color-custom::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-custom::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.emoji-custom {
+  margin-top: 0.5rem;
+}
+
+.emoji-custom input {
+  flex: 1;
+}
+
+.backups-heading {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.restore-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.restore-note code {
+  display: inline-block;
+  padding: 0.05rem 0.3rem;
+  border-radius: 5px;
+  background: var(--surface-3);
+  font-size: 0.72rem;
+  word-break: break-all;
+}
+
+.manage-cats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  margin-top: 0.4rem;
+  color: var(--accent-hover);
+  font-weight: 600;
+}
+
+/* ============================================================
+   Plan: forecast, history, rule preview
+   ============================================================ */
+
+.budget-track {
+  position: relative;
+}
+
+/* where this period lands at the current pace */
+.budget-forecast {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--text-2);
+  transform: translateX(-1px);
+}
+
+.budget-forecast.warn {
+  background: var(--amber);
+  width: 3px;
+}
+
+.budget-projection {
+  margin: 0.45rem 0 0;
+  font-size: 0.76rem;
+  color: var(--text-2);
+}
+
+.budget-projection.warn {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+.budget-history .hist {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.4rem 0.5rem;
+  border-radius: 10px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.hist-period {
+  font-size: 0.64rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.hist-amount {
+  font-size: 0.74rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* a trend line under each period, relative to the budget */
+.hist-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--accent);
+}
+
+.budget-history .hist.over .hist-amount {
+  color: var(--red);
+}
+
+.budget-history .hist.over .hist-bar {
+  background: var(--red);
+}
+
+.rule-preview {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* action menus: icon + label rows, destructive one clearly marked */
+.sheet-row span {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sheet-row.danger {
+  color: var(--red);
+}
+
+.sheet-row .icon-svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--text-3);
+}
+
+.sheet-row.danger .icon-svg {
+  color: var(--red);
+}
+
+/* ============================================================
+   Home: insights & share donut
+   ============================================================ */
+
+.insights {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 0.9rem;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+
+.insight {
+  flex: 1 0 8.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.insight.static {
+  cursor: default;
+}
+
+.insight-label {
+  font-size: 0.66rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+}
+
+.insight-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.insight-sub {
+  font-size: 0.72rem;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.donut-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.donut {
+  width: 170px;
+  height: 170px;
+  flex-shrink: 0;
+  margin: 0 auto;
+}
+
+.donut-arc {
+  stroke-linecap: butt;
+  cursor: pointer;
+  transition: stroke-width 0.12s;
+}
+
+.donut-total {
+  fill: var(--text);
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.donut-sub {
+  fill: var(--text-3);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.donut-legend {
+  flex: 1 1 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.donut-key {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.4rem;
+  border-radius: 9px;
+  background: transparent;
+  border-color: transparent;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.donut-key.on {
+  background: var(--surface-2);
+}
+
+.donut-key-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donut-key-pct {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.dot-sm {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   List: search, selection, swipe
+   ============================================================ */
+
+.search-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.search-bar input {
+  width: 100%;
+  padding-left: 2.4rem;
+  padding-right: 2.4rem;
+}
+
+.search-bar input::-webkit-search-cancel-button {
+  display: none; /* we render our own, so it matches the icon set */
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.8rem;
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+.search-clear {
+  position: absolute;
+  right: 0.35rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-2);
+}
+
+/* day headers stay put while their rows scroll under them */
+.day-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+  padding: 0.35rem 0.25rem;
+  margin: 1.1rem 0 0.4rem;
+}
+
+.select-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--r-input);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+}
+
+.select-count {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.select-bar button {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.82rem;
+}
+
+/* --- swipe-to-delete --- */
+
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  /* let the browser own vertical scrolling; we only claim horizontal drags */
+  touch-action: pan-y;
+}
+
+.swipe-row.selected {
+  background: var(--accent-soft);
+}
+
+.swipe-behind {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  padding-right: 1rem;
+  background: var(--red);
+  color: #2a0d0d;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.swipe-behind.armed {
+  background: #ef4444;
+}
+
+.swipe-row .row-btn {
+  position: relative;
+  background: var(--surface);
+  transition: transform 0.16s ease-out;
+}
+
+.swipe-row .row-btn:active {
+  background: var(--surface-2);
+}
+
+.row-check {
+  width: 1.35rem;
+  height: 1.35rem;
+  min-width: 1.35rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  display: grid;
+  place-items: center;
+}
+
+.row-check.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.row-check .icon-svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  stroke-width: 3;
+}
+
+.row-badge {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  vertical-align: middle;
+}
+
+.list-sentinel {
+  min-height: 2.5rem;
+  display: grid;
+  place-items: center;
+  padding: 0.75rem 0;
+  font-size: 0.8rem;
 }
 
 /* ============================================================
@@ -639,6 +1610,8 @@ button.quiet {
   margin: 1.1rem 0.25rem 0.4rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .expense-list,
@@ -1339,8 +2312,32 @@ button.quiet {
   font-size: 0.88rem;
 }
 
+/* Paused rules read as paused, not as "loading" or "broken". The badge carries
+   the meaning; the dimming only supports it — 0.5 opacity on already-muted text
+   undid the contrast work in Section 2. */
 .inactive-rule {
-  opacity: 0.5;
+  opacity: 0.78;
+}
+
+.inactive-rule .icon {
+  filter: grayscale(0.7);
+}
+
+.paused-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: rgba(251, 191, 36, 0.16);
+  color: var(--amber);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.64rem;
+}
+
+.paused-badge .icon-svg {
+  width: 0.62rem;
+  height: 0.62rem;
+  stroke-width: 2.6;
 }
 
 .upcoming-list {
@@ -1530,8 +2527,9 @@ button.quiet {
 
 /* uniform small icon actions (recurring rows etc.) */
 .icon-act {
-  width: 2.3rem;
-  height: 2.3rem;
+  /* 44px — was 2.3rem (~37px), and these sit adjacent in pairs */
+  width: 2.75rem;
+  height: 2.75rem;
   padding: 0;
   display: grid;
   place-items: center;
@@ -1592,7 +2590,8 @@ button.quiet {
 
 .emoji-cell {
   font-size: 1.35rem;
-  padding: 0.45rem 0;
+  /* grid neighbours on all sides, so grow the cell itself to clear 44px */
+  padding: 0.7rem 0;
   border-radius: 12px;
   background: var(--surface-2);
   border: 1px solid transparent;
@@ -1606,21 +2605,27 @@ button.quiet {
 .color-dots {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  /* the dots' transparent borders already space them ~1rem apart */
+  gap: 0;
 }
 
 .color-dots .dot {
-  width: 1.7rem;
-  height: 1.7rem;
+  /* dot stays 1.7rem visually; the box grows to a 44px tap area */
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
   border: none;
   padding: 0;
   flex-shrink: 0;
+  background-clip: content-box !important;
+  box-sizing: border-box;
+  border: 0.525rem solid transparent;
 }
 
+/* the selection ring hugs the painted dot, not the enlarged tap box */
 .color-dots .dot.on {
   outline: 2px solid var(--text);
-  outline-offset: 2px;
+  outline-offset: -0.4rem;
 }
 
 .cat-list li button {
@@ -1630,6 +2635,254 @@ button.quiet {
 
 .cat-list.archived {
   opacity: 0.6;
+}
+
+/* ============================================================
+   Network & error states
+   ============================================================ */
+
+.offline-banner {
+  flex-shrink: 0;
+  padding: 0.5rem 1.1rem;
+  background: var(--amber);
+  color: #221a02;
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+/* one shape for every error in the app */
+.error-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.6rem 0.7rem;
+  margin: 0.5rem 0;
+  border-radius: 12px;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.error-note-icon {
+  flex-shrink: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: var(--red);
+  color: #2a0d0d;
+  font-weight: 800;
+  font-size: 0.78rem;
+  display: grid;
+  place-items: center;
+  margin-top: 0.05rem;
+}
+
+.error-note-msg {
+  flex: 1;
+  min-width: 0;
+}
+
+.error-note-retry {
+  flex-shrink: 0;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  background: transparent;
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.screen-error {
+  padding: 2rem 0.5rem;
+  text-align: center;
+}
+
+.screen-error h3 {
+  margin: 0 0 0.4rem;
+}
+
+.screen-error .row {
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+/* Save + Cancel while a write is in flight */
+.save-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.save-row .save-btn {
+  flex: 1;
+}
+
+.save-cancel {
+  flex-shrink: 0;
+  padding: 0.95rem 1.1rem;
+  border-radius: 16px;
+  font-weight: 650;
+}
+
+/* ============================================================
+   High-risk confirms
+   ============================================================ */
+
+/* A wide-blast action must not look like an ordinary one. */
+.modal.confirm-sheet.high-risk {
+  border-color: var(--red);
+  border-top-width: 3px;
+}
+
+.confirm-details {
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem;
+}
+
+.destroy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.88rem;
+  color: var(--text-2);
+}
+
+.destroy-list strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.confirm-phrase {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+
+.confirm-phrase strong {
+  color: var(--red);
+  letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   Toasts
+   ============================================================ */
+
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  /* clear of the tab bar and the FAB overhang */
+  bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  z-index: 20;
+  width: min(100% - 1.6rem, 480px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.75rem 0.7rem 0.95rem;
+  border-radius: 14px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 0.88rem;
+  pointer-events: auto;
+  animation: toast-in 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.toast.error {
+  border-color: var(--red);
+}
+
+.toast-msg {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-action {
+  flex-shrink: 0;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+   Loading skeletons
+   ============================================================ */
+
+.sk {
+  display: block;
+  background: var(--surface-2);
+  border-radius: 6px;
+  animation: sk-pulse 1.3s ease-in-out infinite;
+}
+
+.icon.sk {
+  border-radius: 13px;
+}
+
+/* a card-shaped placeholder keeps the card's own geometry */
+.card.sk {
+  border-radius: var(--r-card);
+  border-color: transparent;
+}
+
+.sk-line {
+  height: 0.72rem;
+}
+
+.sk-sub {
+  height: 0.6rem;
+  margin-top: 0.3rem;
+}
+
+/* skeleton dimensions, out of the JSX */
+.sk-w38 { width: 38%; }
+.sk-w55 { width: 55%; }
+.sk-amount { width: 4.5rem; }
+.sk-kpi { width: 70%; height: 1.1rem; }
+.sk-kpi.narrow { width: 45%; }
+.sk-chart { width: 100%; height: 9rem; }
+.sk-cat-row { height: 2.4rem; margin-bottom: 0.5rem; }
+.sk-card-sm { height: 3.5rem; }
+.sk-card-md { height: 5rem; }
+.sk-card-lg { height: 6.5rem; }
+
+@keyframes sk-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }
 
 /* ============================================================
@@ -1646,6 +2899,24 @@ button.quiet {
   align-items: flex-end;
   justify-content: center;
   z-index: 10;
+}
+
+/* a sheet stacked on a sheet must not dim twice — only the topmost paints */
+.modal-backdrop.nested {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* the scroller is .screen, not body — freeze it while a sheet is open so the
+   page behind the backdrop can't be scrolled away */
+.sheet-open .screen {
+  overflow: hidden;
+}
+
+.modal:focus-visible,
+.composer-overlay:focus-visible {
+  outline: none;
 }
 
 .modal {

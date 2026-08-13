@@ -1,4 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { anySheetOpen } from "./components/Sheet";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { useOnline } from "./lib/useOnline";
+import { onNavigate } from "./lib/nav";
 import AddExpense from "./screens/AddExpense";
 import ExpensesList from "./screens/ExpensesList";
 import Stats from "./screens/Stats";
@@ -53,10 +57,48 @@ export default function App() {
     if (h === "categories") return "import";
     return isTab(h) ? h : "stats";
   });
+
+  /**
+   * Current tab in a ref as well as state.
+   *
+   * The listeners below are registered once, so anything they close over is
+   * frozen at first render. A stale `tab` in the guard made setTab a silent
+   * no-op whenever the first-render tab happened to match the target — which
+   * is exactly how "Manage categories" failed to navigate.
+   */
+  const tabRef = useRef(tab);
+
+  // each tab switch is a real history entry, so Back walks back through tabs
+  // instead of leaving the app
   const setTab = (t: Tab) => {
+    if (t === tabRef.current) return;
+    tabRef.current = t;
     setTabState(t);
-    window.history.replaceState(null, "", `#${t}`);
+    window.history.pushState({ tab: t }, "", `#${t}`);
   };
+  const setTabRef = useRef(setTab);
+  setTabRef.current = setTab;
+
+  useEffect(() => {
+    window.history.replaceState({ tab: tabRef.current }, "", `#${tabRef.current}`);
+    const onPop = (e: PopStateEvent) => {
+      // an open sheet absorbs Back to close itself — leave the tab alone
+      if (anySheetOpen()) return;
+      const t = (e.state as { tab?: string } | null)?.tab ?? window.location.hash.slice(1);
+      if (isTab(t)) {
+        tabRef.current = t;
+        setTabState(t);
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    const offNav = onNavigate(({ tab: t }) => setTabRef.current(t));
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      offNav();
+    };
+  }, []);
+
+  const online = useOnline();
 
   // lifted so the Stats screen can drill through into a filtered list
   const [listFilters, setListFilters] = useState<ExpenseFilters>({});
@@ -68,22 +110,38 @@ export default function App() {
 
   return (
     <div className="app">
+      {!online && (
+        <div className="offline-banner" role="status">
+          You're offline — saving is paused until the connection is back.
+        </div>
+      )}
       {/* all screens stay mounted so filters, drafts, and scroll state
-          survive tab switches; only the active one is displayed */}
+          survive tab switches; only the active one is displayed.
+          Each is boundaried so one bad panel can't take the tab bar with it. */}
       <div className="screen" hidden={tab !== "stats"}>
-        <Stats onOpenExpenses={openExpenses} />
+        <ErrorBoundary name="Home">
+          <Stats onOpenExpenses={openExpenses} />
+        </ErrorBoundary>
       </div>
       <div className="screen" hidden={tab !== "list"}>
-        <ExpensesList filters={listFilters} onFiltersChange={setListFilters} />
+        <ErrorBoundary name="List">
+          <ExpensesList filters={listFilters} onFiltersChange={setListFilters} />
+        </ErrorBoundary>
       </div>
       <div className="screen" hidden={tab !== "add"}>
-        <AddExpense />
+        <ErrorBoundary name="Add">
+          <AddExpense />
+        </ErrorBoundary>
       </div>
       <div className="screen" hidden={tab !== "plan"}>
-        <Plan />
+        <ErrorBoundary name="Plan">
+          <Plan />
+        </ErrorBoundary>
       </div>
       <div className="screen" hidden={tab !== "import"}>
-        <Import />
+        <ErrorBoundary name="Data">
+          <Import />
+        </ErrorBoundary>
       </div>
       <nav className="tabbar">
         <button

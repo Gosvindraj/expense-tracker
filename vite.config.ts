@@ -31,6 +31,19 @@ export default defineConfig({
           { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
           { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        // Long-press the app icon → straight to the composer, skipping a tab tap
+        // on the most common action. Android and desktop only: iOS does not
+        // implement manifest shortcuts, so it's inert on iPhone — kept because
+        // it costs nothing and is correct wherever it is supported.
+        shortcuts: [
+          {
+            name: "Add expense",
+            short_name: "Add",
+            description: "Log a new expense",
+            url: "/#add",
+            icons: [{ src: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+          },
+        ],
       },
     }),
   ],
