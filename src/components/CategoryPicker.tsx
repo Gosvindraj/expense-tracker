@@ -1,5 +1,8 @@
 import { useState } from "react";
 import type { Category } from "../../shared/schemas";
+import Sheet from "./Sheet";
+import Icon from "./Icon";
+import { navigate } from "../lib/nav";
 
 /** Bottom-sheet category picker with search. `allowOverall` adds an "Overall" row (id null). */
 export default function CategoryPicker({
@@ -20,18 +23,17 @@ export default function CategoryPicker({
   const filtered = q ? categories.filter((c) => c.name.toLowerCase().includes(q)) : categories;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal picker-sheet" onClick={(e) => e.stopPropagation()}>
-        <h3>Category</h3>
-        <input placeholder="Search…" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <div className="picker-grid">
+    <Sheet title="Category" className="picker-sheet" onClose={onClose}>
+      <h3>Category</h3>
+      <input placeholder="Search…" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className="picker-grid">
           {allowOverall && !q && (
             <button
               type="button"
               className={`picker-item ${selectedId === null ? "selected" : ""}`}
               onClick={() => onSelect(null)}
             >
-              <span className="icon" style={{ background: "var(--surface-3)" }}>
+              <span className="icon" aria-hidden="true" style={{ background: "var(--surface-3)" }}>
                 🌐
               </span>
               <span className="name">Overall</span>
@@ -44,16 +46,26 @@ export default function CategoryPicker({
               className={`picker-item ${selectedId === c.id ? "selected" : ""}`}
               onClick={() => onSelect(c.id)}
             >
-              <span className="icon" style={{ background: `${c.color}33` }}>
+              <span className="icon" aria-hidden="true" style={{ background: `${c.color}33` }}>
                 {c.icon}
               </span>
               <span className="name">{c.name}</span>
             </button>
           ))}
-          {filtered.length === 0 && <p className="muted">No match.</p>}
-        </div>
+        {filtered.length === 0 && <p className="muted">No match.</p>}
       </div>
-    </div>
+      {/* the moment you most want to edit categories is while picking one */}
+      <button
+        type="button"
+        className="quiet manage-cats"
+        onClick={() => {
+          onClose();
+          navigate("import", "categories");
+        }}
+      >
+        Manage categories <Icon name="chevronRight" />
+      </button>
+    </Sheet>
   );
 }
 
