@@ -104,17 +104,73 @@ parameter. That's the whole point of this project.
 5. **Recurring** — upcoming planned payments, edit rules.
 6. **Settings** — categories management, import, export, backup status.
 
+## Build notes worth keeping
+
+Extracted from the phase documents before they were deleted (2026-08-14). The
+checklists were finished and therefore dead; these are the parts that would
+still bite someone later.
+
+- **Data provenance.** The Wallet export `report_2026-07-18_134409.csv` — 1,505
+  expenses, Nov 2022 → Jul 2026 — was imported as batch #3. It is gitignored;
+  keep a copy somewhere other than this repo.
+- **Scope was narrowed against real data, not guessed.** Checking the export
+  showed 1 account, 0 income rows, 0 transfers, 0 labels — which is why there
+  are no accounts, income, transfers, labels or payees. Re-read that before
+  reopening any of them.
+- **The importer is permanent, not migration scaffolding.** It stays in the app
+  for future CSVs.
+- **`recurring_rules` uses typed columns**, not the JSON `template` blob in the
+  original sketch — so rules stay queryable in SQL.
+- **`useCredentials: true` on the PWA manifest is load-bearing.** Behind
+  Cloudflare Access the manifest fetch is cookieless by default, 302s to the
+  login page, and installation silently fails. Do not remove it.
+- **Nightly R2 snapshot** at `0 20 * * *` UTC (04:00 MYT), last 30 kept.
+  Restore is `scripts/restore-snapshot.mjs <file> --local|--remote` — deliberately
+  a CLI script rather than a button in the app.
+- **Custom domain sequencing.** Add the domain, verify it serves, *then* set
+  `workers_dev: false`. Doing both in one deploy took the app offline: the old
+  hostname stopped routing before the new one existed.
+- **Never write a PATCH schema as `createSchema.partial()`.** Zod's `.partial()`
+  makes keys optional, but a field with `.default()` still emits that default
+  when the key is absent — and the handlers `.set()` the validated body. A
+  partial PATCH therefore wrote defaults over real values: reordering categories
+  wiped the icon and colour of eight of them. All four update schemas are now
+  written explicitly with `.optional()` and no defaults.
+- **Aborting a fetch does not cancel the server's work.** A timed-out or
+  cancelled create may still have landed, so the client looks for the exact
+  payload it posted before reporting failure. Without that, a timeout invites a
+  retry and produces a duplicate.
+- **Import rollback is the widest-blast action in the app** — it deleted all
+  1,505 imported expenses during testing. It now states what it will destroy,
+  demands a typed phrase above 100 rows, and takes a snapshot first.
+- **iOS: date inputs must be tappable, not hidden.** An input shrunk to 1px and
+  opened via `showPicker()` works in Chrome and does nothing on iOS. The native
+  input overlays the styled row and takes the tap itself.
+- **iOS: `<a download>` is unreliable in a standalone PWA.** Downloads go through
+  the Web Share API with a `File`, falling back to the anchor.
+- **Controls are 16px** because iOS zooms the viewport for anything smaller and,
+  in standalone, there's no pinch-out to undo it.
+
 ## Phases
 
-| Phase | File | Outcome |
+| Phase | Outcome | Status |
 |---|---|---|
-| 0 | [plan/PHASE-0-data-rescue.md](plan/PHASE-0-data-rescue.md) | Wallet data exported and safe |
-| 1 | [plan/PHASE-1-walking-skeleton.md](plan/PHASE-1-walking-skeleton.md) | Deployed end-to-end skeleton behind auth |
-| 2 | [plan/PHASE-2-core-tracking.md](plan/PHASE-2-core-tracking.md) | Daily tracking works — **can quit Wallet here** |
-| 3 | [plan/PHASE-3-import.md](plan/PHASE-3-import.md) | 3.5 years of history migrated and verified |
-| 4 | [plan/PHASE-4-stats.md](plan/PHASE-4-stats.md) | Unrestricted stats — **surpasses Wallet here** |
-| 5 | [plan/PHASE-5-budgets-recurring.md](plan/PHASE-5-budgets-recurring.md) | Budgets + auto-logged recurring payments |
-| 6 | [plan/PHASE-6-pwa-polish-backups.md](plan/PHASE-6-pwa-polish-backups.md) | Installed PWA + nightly backups |
+| 0 | Wallet data exported and safe | Done |
+| 1 | Deployed end-to-end skeleton behind Cloudflare Access | Done |
+| 2 | Daily tracking works — quit Wallet for new entries here | Done |
+| 3 | 3.5 years of history migrated and verified | Done — 1,505 rows |
+| 4 | Unrestricted stats — surpasses Wallet here | Done |
+| 5 | Budgets + auto-logged recurring payments | Done |
+| 6 | Installed PWA, nightly R2 backups, custom domain | Done |
+| 7 | Overlay/nav shell, destructive-action safety, accessibility, one design vocabulary, design tokens, per-screen passes | Done — verified on iPhone 2026-08-14 |
+
+Phase documents were deleted once complete: a finished checklist has no readers.
+What was worth keeping from them is in **Build notes** above, and everything not
+built — with the reasoning — is in [plan/BACKLOG.md](plan/BACKLOG.md). The full
+text remains in git history if it is ever wanted.
+
+The target device is an **iPhone**, not the Android this plan originally
+assumed; Phase 7 corrected the decisions that had been made on that basis.
 
 Critical path off Wallet: **0 → 1 → 2 → 3**. Phases 4–6 can be reordered freely.
 
