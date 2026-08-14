@@ -50,7 +50,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback(
     (spec: ToastSpec) => {
       const id = ++seq;
-      const duration = spec.duration ?? (spec.action ? 5000 : 3000);
+      // A plain confirmation has nothing to act on, so it should clear fast —
+      // it overlays the Save button, and rapid entry is the common case.
+      // Ones with an action (Undo) need long enough to reach for.
+      const duration = spec.duration ?? (spec.action ? 5000 : 1800);
       setItems((s) => [...s, { ...spec, id }]);
       timers.current.set(id, window.setTimeout(() => dismiss(id), duration));
     },

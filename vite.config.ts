@@ -15,6 +15,17 @@ export default defineConfig({
       // cache the app shell only — the API is online-only by design
       workbox: {
         globPatterns: ["**/*.{js,css,html,png,woff2}"],
+        /**
+         * Inter ships seven unicode subsets. `unicode-range` already stops a
+         * browser fetching the ones it doesn't need — but precaching bypasses
+         * that and pulls all 218KB on install, of which ~170KB is Cyrillic,
+         * Greek, Vietnamese and latin-ext this app never renders.
+         *
+         * Excluded rather than removed from the bundle: they stay on the
+         * server, so an accented character in a category name still resolves —
+         * it just costs a request instead of everyone's install.
+         */
+        globIgnores: ["**/inter-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese,latin-ext}-*.woff2"],
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//, /^\/cdn-cgi\//],
       },

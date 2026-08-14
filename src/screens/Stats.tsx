@@ -425,9 +425,14 @@ export default function Stats({
       <Insights
         series={series}
         bucket={bucket}
+        // a bucket switch refetches the timeseries; keepPreviousData means
+        // isLoading stays false, so the peak card would show the old period's
+        // answer until the new one lands
+        peakLoading={timeseriesQuery.isPlaceholderData || timeseriesQuery.isFetching}
         byCategory={byCategoryQuery.data ?? []}
         catById={catById}
         summary={summary}
+        loading={summaryQuery.isLoading || byCategoryQuery.isLoading}
         onOpenBucket={(key) => drill(bucketToRange(key, bucket))}
         onOpenCategory={(id) => drill({ categories: [id] })}
       />
@@ -853,17 +858,21 @@ function ColumnChart({
 function Insights({
   series,
   bucket,
+  peakLoading = false,
   byCategory,
   catById,
   summary,
+  loading = false,
   onOpenBucket,
   onOpenCategory,
 }: {
   series: TimeseriesPoint[];
   bucket: Bucket;
+  peakLoading?: boolean;
   byCategory: { categoryId: number; sumMinor: number; count: number }[];
   catById: Map<number, Category>;
   summary: { sumMinor: number; count: number } | undefined;
+  loading?: boolean;
   onOpenBucket: (key: string) => void;
   onOpenCategory: (id: number) => void;
 }) {
@@ -872,6 +881,22 @@ function Insights({
     [series],
   );
   const top = byCategory[0];
+
+  // the row reserves its height rather than appearing late and shoving the
+  // chart down the screen
+  if (loading) {
+    return (
+      <div className="insights">
+        {Array.from({ length: 3 }, (_, i) => (
+          <div key={i} className="insight static">
+            <span className="sk sk-line sk-insight narrow" />
+            <span className="sk sk-line sk-insight" />
+            <span className="sk sk-line sk-insight narrow" />
+          </div>
+        ))}
+      </div>
+    );
+  }
   if (!summary || summary.count === 0) return null;
 
   const bucketWord = bucket === "day" ? "day" : bucket === "month" ? "month" : "year";
@@ -892,14 +917,23 @@ function Insights({
           </span>
         </button>
       )}
-      {peak && peak.sumMinor > 0 && (
-        <button type="button" className="insight" onClick={() => onOpenBucket(peak.bucket)}>
+      {peakLoading ? (
+        <div className="insight static">
           <span className="insight-label">Heaviest {bucketWord}</span>
-          <span className="insight-value">{bucketLabel(peak.bucket, bucket)}</span>
-          <span className="insight-sub">
-            {fmtAmount(peak.sumMinor)} · {peak.count} expense{peak.count === 1 ? "" : "s"}
-          </span>
-        </button>
+          <span className="sk sk-line sk-insight" />
+          <span className="sk sk-line sk-insight narrow" />
+        </div>
+      ) : (
+        peak &&
+        peak.sumMinor > 0 && (
+          <button type="button" className="insight" onClick={() => onOpenBucket(peak.bucket)}>
+            <span className="insight-label">Heaviest {bucketWord}</span>
+            <span className="insight-value">{bucketLabel(peak.bucket, bucket)}</span>
+            <span className="insight-sub">
+              {fmtAmount(peak.sumMinor)} · {peak.count} expense{peak.count === 1 ? "" : "s"}
+            </span>
+          </button>
+        )
       )}
       <div className="insight static">
         <span className="insight-label">Average expense</span>

@@ -101,7 +101,11 @@ export default function Sheet({
       url: location.href,
     });
 
-    (surface.querySelector<HTMLElement>(FOCUSABLE) ?? surface).focus();
+    // Focus the sheet itself, never its first field: focusing a text input
+    // throws up the on-screen keyboard the moment a sheet opens, which on a
+    // phone covers the very thing the user came to look at. Tab still enters
+    // the sheet from here, and the trap below still holds.
+    surface.focus();
 
     const trap = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;

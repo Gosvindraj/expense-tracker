@@ -3,125 +3,154 @@ import type { Category, Expense } from "../../shared/schemas";
 import { fmtAmount } from "../lib/format";
 import Icon from "./Icon";
 
-const SWIPE_TRIGGER = 96; // px before a swipe commits to delete
-const LONG_PRESS_MS = 450;
-const MOVE_SLOP = 8; // px of travel before we call it a drag, not a tap
+const SWIPE_TRIGGER = 88; // px of travel before a release commits to delete
+const SWIPE_MAX = 132; // beyond this the row resists, so it can't be flung away
+const LONG_PRESS_MS = 400;
+const MOVE_SLOP = 8; // px before a press counts as a drag
+const AXIS_BIAS = 1.2; // how much more horizontal than vertical a swipe must be
 
 /**
- * One expense row, carrying three gestures without them fighting:
- *   tap         → edit (or toggle, in selection mode)
- *   long-press  → enter selection mode
- *   swipe left  → delete
+ * One expense row, with two gestures:
+ *   long-press → edit
+ *   swipe left → delete
  *
- * Vertical movement always yields to the scroller: a drag is only claimed as
- * horizontal once it's clearly more sideways than up-down.
+ * A plain tap does nothing, deliberately: the list is mostly scrolled and read,
+ * and tap-to-edit on a scrolling list fires by accident often enough to be
+ * worse than the half-second a deliberate press costs.
+ *
+ * The drag writes `transform` straight to the node rather than going through
+ * React state. Two reasons: a re-render per pointermove is jank on a long list,
+ * and the CSS transition that smooths the snap-back must be *off* while the
+ * finger is down or the row lags behind it — which is what made releasing feel
+ * unpredictable. Only the threshold crossing is state, because that's the one
+ * thing that has to re-render.
  */
 export default function ExpenseRow({
   expense,
   category,
-  selecting,
-  selected,
   onOpen,
-  onToggleSelect,
-  onStartSelecting,
   onDelete,
 }: {
   expense: Expense;
   category: Category | undefined;
-  selecting: boolean;
-  selected: boolean;
   onOpen: () => void;
-  onToggleSelect: () => void;
-  onStartSelecting: () => void;
   onDelete: () => void;
 }) {
-  const [dx, setDx] = useState(0);
+  const [armed, setArmed] = useState(false);
+  const [pressing, setPressing] = useState(false);
+
+  const btn = useRef<HTMLButtonElement>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const axis = useRef<"none" | "x" | "y">("none");
+  const dx = useRef(0);
   const longPress = useRef<number | undefined>(undefined);
-  const moved = useRef(false);
+  const opened = useRef(false); // long-press fired; the release must not delete
 
-  const clearLongPress = () => {
+  const setX = (x: number, animate: boolean) => {
+    const el = btn.current;
+    if (!el) return;
+    el.style.transition = animate ? "transform 0.18s ease-out" : "none";
+    el.style.transform = x ? `translateX(${x}px)` : "";
+  };
+
+  const cancelLongPress = () => {
     if (longPress.current !== undefined) {
       clearTimeout(longPress.current);
       longPress.current = undefined;
     }
+    setPressing(false);
   };
 
-  function onPointerDown(e: React.PointerEvent) {
+  function reset(animate = true) {
+    dx.current = 0;
+    axis.current = "none";
+    start.current = null;
+    setArmed(false);
+    setX(0, animate);
+  }
+
+  function onPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    // capture, or a fast drag leaves the element and we stop hearing about it —
+    // the row would freeze mid-swipe and never get its pointerup
+    e.currentTarget.setPointerCapture(e.pointerId);
     start.current = { x: e.clientX, y: e.clientY };
     axis.current = "none";
-    moved.current = false;
-    if (!selecting) {
-      longPress.current = window.setTimeout(() => {
-        onStartSelecting();
-        onToggleSelect();
-        longPress.current = undefined;
-      }, LONG_PRESS_MS);
-    }
+    dx.current = 0;
+    opened.current = false;
+    setPressing(true);
+    longPress.current = window.setTimeout(() => {
+      longPress.current = undefined;
+      opened.current = true;
+      setPressing(false);
+      navigator.vibrate?.(12); // Android only
+      onOpen();
+    }, LONG_PRESS_MS);
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    if (!start.current) return;
-    const ddx = e.clientX - start.current.x;
-    const ddy = e.clientY - start.current.y;
-    if (Math.abs(ddx) > MOVE_SLOP || Math.abs(ddy) > MOVE_SLOP) {
-      moved.current = true;
-      clearLongPress();
+    if (!start.current || opened.current) return;
+    const mx = e.clientX - start.current.x;
+    const my = e.clientY - start.current.y;
+
+    if (axis.current === "none") {
+      if (Math.abs(mx) < MOVE_SLOP && Math.abs(my) < MOVE_SLOP) return;
+      cancelLongPress();
+      // vertical wins ties: scrolling the list must never be hijacked
+      axis.current = Math.abs(mx) > Math.abs(my) * AXIS_BIAS ? "x" : "y";
     }
-    if (axis.current === "none" && (Math.abs(ddx) > MOVE_SLOP || Math.abs(ddy) > MOVE_SLOP)) {
-      // let the page scroll unless this is decisively horizontal
-      axis.current = Math.abs(ddx) > Math.abs(ddy) * 1.4 ? "x" : "y";
-    }
-    if (axis.current === "x" && !selecting) {
-      e.preventDefault();
-      setDx(Math.min(0, ddx)); // left only
+    if (axis.current !== "x") return;
+
+    // resist past the maximum instead of stopping dead, so the limit is felt
+    const raw = Math.min(0, mx);
+    const over = Math.max(0, -raw - SWIPE_MAX);
+    dx.current = -(Math.min(-raw, SWIPE_MAX) + over * 0.25);
+    setX(dx.current, false);
+
+    const nowArmed = dx.current <= -SWIPE_TRIGGER;
+    if (nowArmed !== armed) {
+      setArmed(nowArmed);
+      if (nowArmed) navigator.vibrate?.(10); // the moment it will delete
     }
   }
 
   function onPointerUp() {
-    clearLongPress();
-    const swiped = dx <= -SWIPE_TRIGGER;
-    const wasTap = !moved.current && axis.current === "none";
-    setDx(0);
-    start.current = null;
-    if (swiped) return onDelete();
-    if (!wasTap) return;
-    if (selecting) onToggleSelect();
-    else onOpen();
+    cancelLongPress();
+    if (opened.current) return reset(false);
+    const commit = dx.current <= -SWIPE_TRIGGER;
+    if (!commit) return reset();
+    // slide clear before removing, so the row doesn't snap back and vanish
+    setX(-window.innerWidth, true);
+    setArmed(false);
+    window.setTimeout(onDelete, 140);
   }
-
-  function onPointerCancel() {
-    clearLongPress();
-    setDx(0);
-    start.current = null;
-  }
-
-  const armed = dx <= -SWIPE_TRIGGER;
 
   return (
-    <li className={`swipe-row ${selected ? "selected" : ""}`}>
+    <li className="swipe-row">
       <span className={`swipe-behind ${armed ? "armed" : ""}`} aria-hidden="true">
         <Icon name="close" />
         {armed ? "Release to delete" : "Delete"}
       </span>
       <button
+        ref={btn}
         type="button"
-        className="row-btn"
-        style={dx ? { transform: `translateX(${dx}px)` } : undefined}
+        className={`row-btn ${pressing ? "pressing" : ""}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
+        onPointerCancel={() => {
+          cancelLongPress();
+          reset();
+        }}
         onContextMenu={(e) => e.preventDefault()}
-        aria-pressed={selecting ? selected : undefined}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
+        aria-label={`Edit ${category?.name ?? "expense"}, ${fmtAmount(expense.amountMinor)}`}
       >
-        {selecting && (
-          <span className={`row-check ${selected ? "on" : ""}`} aria-hidden="true">
-            {selected && <Icon name="check" />}
-          </span>
-        )}
         <span
           className="icon"
           aria-hidden="true"
@@ -132,9 +161,6 @@ export default function ExpenseRow({
         <span className="mid">
           <span className="cat-name">
             {category?.name ?? "Unknown"}
-            {/* No "Imported" badge: virtually every row came from the Wallet
-                migration, so it would mark almost the whole list and tell you
-                nothing. Recurring is rare enough to be worth flagging. */}
             {expense.recurringRuleId !== null && (
               <span className="row-badge" title="Logged by a recurring rule">
                 Recurring

@@ -50,7 +50,7 @@ function BackupsCard() {
   return (
     <div className={`card ${staleWarning ? "warn" : ""}`}>
       {backupsQuery.isLoading ? (
-        <p className="muted">Loading…</p>
+        <span className="sk sk-line sk-backup" />
       ) : latest ? (
         <p className="backup-status">
           Last snapshot:{" "}

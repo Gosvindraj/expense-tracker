@@ -19,7 +19,6 @@ import CategoryPicker from "./CategoryPicker";
 import { useToast } from "./Toast";
 import Icon from "./Icon";
 import { DateField } from "./Field";
-import ErrorNote from "./ErrorNote";
 
 /**
  * Two blocks side by side, as on a physical calculator: a 3x4 number pad, and
@@ -109,7 +108,6 @@ export default function ExpenseComposer({
   const [categoryId, setCategoryId] = useState<number | null>(expense?.categoryId ?? null);
   const [note, setNote] = useState(expense?.note ?? "");
   const [whenDate, setWhenDate] = useState(() => expense?.spentAt.slice(0, 10) ?? todayISO());
-  const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const online = useOnline();
   const abortRef = useRef<AbortController | null>(null);
@@ -182,7 +180,6 @@ export default function ExpenseComposer({
     // never overwrite an amount already being typed
     if (!expr) setExpr(minorToExpr(s.amountMinor));
     setNoteFocused(false);
-    setError(null);
   }
 
   /**
@@ -204,7 +201,6 @@ export default function ExpenseComposer({
     setExpr(minorToExpr(last.amountMinor));
     setCategoryId(last.categoryId);
     setNote(last.note);
-    setError(null);
   }
 
   const strip = useMemo(() => {
@@ -250,7 +246,9 @@ export default function ExpenseComposer({
       setReconciling(false);
       if (landed) return onCreated(input, { late: true });
       // a cancel is the user's own doing — don't report it back as a fault
-      setError(e instanceof CancelledError ? null : e.message);
+      if (!(e instanceof CancelledError)) {
+        toast({ message: e.message, tone: "error", duration: 6000 });
+      }
     },
     onSuccess: (_data, input) => onCreated(input),
   });
@@ -261,7 +259,6 @@ export default function ExpenseComposer({
     // Harmless to keep: optional-chained, and correct if the device supports it.
     navigator.vibrate?.(18);
     refresh();
-    setError(null);
     setExpr("");
     setNote("");
     setWhenDate(todayISO());
@@ -283,7 +280,6 @@ export default function ExpenseComposer({
   }
 
   function press(key: Key) {
-    setError(null);
     setExpr((prev) => {
       if (key === "⌫") return prev.slice(0, -1);
       if (key === "=") {
@@ -317,8 +313,13 @@ export default function ExpenseComposer({
   const maxDate = whenDate > todayISO() ? whenDate : todayISO();
 
   function save() {
-    if (resultMinor === null || resultMinor <= 0) return setError("Enter an amount first");
-    if (!categoryId) return setError("Pick a category");
+    // Toasted rather than rendered inline: an error line appearing between the
+    // note row and the keypad shifts the amount for the same reason the chip
+    // did — and a message over the keypad is more visible than one behind it.
+    if (resultMinor === null || resultMinor <= 0) {
+      return toast({ message: "Enter an amount first", tone: "error" });
+    }
+    if (!categoryId) return toast({ message: "Pick a category", tone: "error" });
     const now = new Date();
     // editing keeps the original time of day; a new expense is stamped now
     const time = expense
@@ -362,16 +363,23 @@ export default function ExpenseComposer({
         = {CURRENCY} {result !== null ? result.toFixed(2) : ""}
       </div>
 
-      {!editing && last && pristine && (
-        <button type="button" className="repeat-last" onClick={repeatLast}>
-          <Icon name="play" />
-          Again: {fmtAmount(last.amountMinor)}
-          <span className="muted">
-            {" "}
-            {catById.get(last.categoryId)?.name ?? ""}
-            {last.note ? ` · ${last.note}` : ""}
-          </span>
-        </button>
+      {/* Reserved slot, not a conditional row: the amount above is centred in
+          flexible space, so a chip that comes and goes drags the number with
+          it. The height stays whether or not the chip is there. */}
+      {!editing && (
+        <div className="assist-row">
+          {last && pristine && (
+            <button type="button" className="repeat-last" onClick={repeatLast}>
+              <Icon name="play" />
+              Again: {fmtAmount(last.amountMinor)}
+              <span className="muted">
+                {" "}
+                {catById.get(last.categoryId)?.name ?? ""}
+                {last.note ? ` · ${last.note}` : ""}
+              </span>
+            </button>
+          )}
+        </div>
       )}
 
       <div className="cat-strip">
@@ -383,6 +391,10 @@ export default function ExpenseComposer({
         >
           <Icon name="grid" /> All
         </button>
+        {categoriesQuery.isLoading &&
+          Array.from({ length: 5 }, (_, i) => (
+            <span key={i} className="sk cat-chip-sk" />
+          ))}
         {strip.map((c) => (
           <button
             key={c.id}
@@ -440,7 +452,6 @@ export default function ExpenseComposer({
         />
       </div>
 
-      <ErrorNote error={error} />
 
       <div className="keypad calc">
         <div className="keypad-nums">
@@ -506,7 +517,6 @@ export default function ExpenseComposer({
           onSelect={(id) => {
             if (id !== null) setCategoryId(id);
             setPickerOpen(false);
-            setError(null);
           }}
           onClose={() => setPickerOpen(false)}
         />

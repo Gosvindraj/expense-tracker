@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getCategories,
   listExpenses,
-  deleteExpense,
-  updateExpense,
-  invalidateExpenseData,
   type ExpenseFilters,
 } from "../api";
 import type { Category, Expense } from "../../shared/schemas";
@@ -16,8 +13,6 @@ import Icon from "../components/Icon";
 import { DateField } from "../components/Field";
 import ExpenseComposer from "../components/ExpenseComposer";
 import ExpenseRow from "../components/ExpenseRow";
-import CategoryPicker from "../components/CategoryPicker";
-import ConfirmSheet from "../components/ConfirmSheet";
 import Sheet from "../components/Sheet";
 import ErrorNote from "../components/ErrorNote";
 import { useToast } from "../components/Toast";
@@ -77,7 +72,6 @@ export default function ExpensesList({
     () => new Map((categoriesQuery.data ?? []).map((c) => [c.id, c])),
     [categoriesQuery.data],
   );
-  const [confirmBulk, setConfirmBulk] = useState(false);
 
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -99,10 +93,6 @@ export default function ExpensesList({
     setSearch(filters.q ?? "");
   }, [filters.q]);
 
-  const [selecting, setSelecting] = useState(false);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [bulkCat, setBulkCat] = useState(false);
-
   const expensesQuery = useInfiniteQuery({
     queryKey: ["expenses", filters],
     queryFn: ({ pageParam }) => listExpenses(filters, PAGE, pageParam),
@@ -113,6 +103,8 @@ export default function ExpensesList({
     },
   });
 
+  // rows need categories too — without them every row reads "Unknown 📦"
+  const loading = expensesQuery.isLoading || categoriesQuery.isLoading;
   const items = expensesQuery.data?.pages.flatMap((p) => p.items) ?? [];
   const total = expensesQuery.data?.pages[0]?.total ?? 0;
   const sumMinor = expensesQuery.data?.pages[0]?.sumMinor ?? 0;
@@ -153,56 +145,24 @@ export default function ExpensesList({
     return () => io.disconnect();
   }, [expensesQuery.hasNextPage, expensesQuery.isFetchingNextPage, expensesQuery]);
 
-  const exitSelection = () => {
-    setSelecting(false);
-    setSelected(new Set());
-  };
-
-  const toggle = (id: number) =>
-    setSelected((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      if (next.size === 0) setSelecting(false);
-      return next;
-    });
-
-  const selectedExpenses = items.filter((e) => selected.has(e.id));
-
-  const bulkDelete = useMutation({
-    mutationFn: async () => {
-      for (const e of selectedExpenses) await deleteExpense(e.id);
-    },
-    onSuccess: () => {
-      invalidateExpenseData(queryClient);
-      toast({ message: `Deleted ${selected.size} expense${selected.size === 1 ? "" : "s"}` });
-      exitSelection();
-      setConfirmBulk(false);
-    },
-  });
-
-  const bulkRecategorise = useMutation({
-    mutationFn: async (categoryId: number) => {
-      for (const e of selectedExpenses) await updateExpense(e.id, { categoryId });
-    },
-    onSuccess: () => {
-      invalidateExpenseData(queryClient);
-      queryClient.invalidateQueries({ queryKey: ["recent-categories"] });
-      toast({ message: `Moved ${selected.size} expense${selected.size === 1 ? "" : "s"}` });
-      exitSelection();
-      setBulkCat(false);
-    },
-  });
-
   return (
     <div className="list-screen">
       <h2>Expenses</h2>
       <header className="list-header">
         <div>
-          <div className="list-sum">{fmtAmount(sumMinor)}</div>
-          <div className="list-count">
-            {total} expense{total === 1 ? "" : "s"}
-          </div>
+          {loading ? (
+            <>
+              <span className="sk sk-line sk-listsum" />
+              <span className="sk sk-line sk-listcount" />
+            </>
+          ) : (
+            <>
+              <div className="list-sum">{fmtAmount(sumMinor)}</div>
+              <div className="list-count">
+                {total} expense{total === 1 ? "" : "s"}
+              </div>
+            </>
+          )}
         </div>
         <button type="button" className="filter-toggle" onClick={() => setPanelOpen((o) => !o)}>
           {panelOpen ? "Hide filters" : hasFilters ? "Filters •" : "Filters"}
@@ -230,31 +190,6 @@ export default function ExpensesList({
         )}
       </div>
 
-      {selecting && (
-        <div className="select-bar">
-          <button type="button" className="quiet" onClick={exitSelection}>
-            Cancel
-          </button>
-          <span className="select-count">{selected.size} selected</span>
-          <button
-            type="button"
-            className="quiet"
-            disabled={selected.size === 0}
-            onClick={() => setBulkCat(true)}
-          >
-            Recategorise
-          </button>
-          <button
-            type="button"
-            className="danger"
-            disabled={selected.size === 0 || bulkDelete.isPending}
-            onClick={() => setConfirmBulk(true)}
-          >
-            Delete
-          </button>
-        </div>
-      )}
-
       {hasFilters && !panelOpen && (
         <div className="fchips">
           {filterChips(filters, catById).map((chip) => (
@@ -280,7 +215,7 @@ export default function ExpensesList({
         />
       )}
 
-      {expensesQuery.isLoading && (
+      {loading && (
         <ul className="expense-list" aria-hidden="true">
           {Array.from({ length: 8 }, (_, i) => (
             <li key={i}>
@@ -297,7 +232,7 @@ export default function ExpensesList({
         </ul>
       )}
       <ErrorNote error={expensesQuery.error} onRetry={() => expensesQuery.refetch()} />
-      {!expensesQuery.isLoading && items.length === 0 && (
+      {!loading && items.length === 0 && (
         <p className="muted">{hasFilters ? "Nothing matches these filters." : "No expenses yet."}</p>
       )}
 
@@ -313,11 +248,7 @@ export default function ExpensesList({
                 key={e.id}
                 expense={e}
                 category={catById.get(e.categoryId)}
-                selecting={selecting}
-                selected={selected.has(e.id)}
                 onOpen={() => setEditing(e)}
-                onToggleSelect={() => toggle(e.id)}
-                onStartSelecting={() => setSelecting(true)}
                 onDelete={() =>
                   deleteExpenseWithUndo(queryClient, e, toast, `${fmtAmount(e.amountMinor)} expense`)
                 }
@@ -334,45 +265,6 @@ export default function ExpensesList({
           <span className="muted">All {total} expenses shown</span>
         )}
       </div>
-
-      {confirmBulk && (
-        <ConfirmSheet
-          title={`Delete ${selected.size} expense${selected.size === 1 ? "" : "s"}?`}
-          message="This can't be undone."
-          details={
-            <ul className="destroy-list">
-              <li>
-                <strong>{selected.size}</strong> expenses
-              </li>
-              <li>
-                totalling{" "}
-                <strong>
-                  {fmtAmount(selectedExpenses.reduce((n, e) => n + e.amountMinor, 0))}
-                </strong>
-              </li>
-            </ul>
-          }
-          confirmPhrase={selected.size > 100 ? "DELETE" : undefined}
-          pending={bulkDelete.isPending}
-          error={bulkDelete.error?.message}
-          onConfirm={() => bulkDelete.mutate()}
-          onClose={() => {
-            bulkDelete.reset();
-            setConfirmBulk(false);
-          }}
-        />
-      )}
-
-      {bulkCat && (
-        <CategoryPicker
-          categories={(categoriesQuery.data ?? []).filter((c) => !c.archived)}
-          selectedId={null}
-          onSelect={(id) => {
-            if (id !== null) bulkRecategorise.mutate(id);
-          }}
-          onClose={() => setBulkCat(false)}
-        />
-      )}
 
       {editing && (
         <Sheet title="Edit expense" variant="full" onClose={() => setEditing(null)}>
