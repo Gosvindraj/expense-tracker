@@ -1,7 +1,11 @@
 # Expense Tracker
 
 Personal single-user expense tracker PWA on Cloudflare (Workers + D1 + React).
-See [PLAN.md](PLAN.md) for the full build plan and [plan/](plan/) for per-phase tasks.
+Replaces BudgetBakers Wallet, with 3.5 years of imported history.
+
+[CLAUDE.md](CLAUDE.md) holds the constraints and gotchas worth knowing before
+changing anything; [plan/BACKLOG.md](plan/BACKLOG.md) records what deliberately
+isn't built, and why.
 
 **Production:** https://expense.gosvindraj.com
 
@@ -14,6 +18,42 @@ See [PLAN.md](PLAN.md) for the full build plan and [plan/](plan/) for per-phase 
 - One Worker serves both the API (`/api/*`) and the built frontend (static assets,
   SPA fallback). The `@cloudflare/vite-plugin` runs the real Worker + a local D1
   inside `vite dev`.
+
+## Data model
+
+Expenses only — no accounts, income, transfers or labels. That was confirmed
+against 3.7 years of the real export, not assumed.
+
+```sql
+categories      (id, name, parent_id NULL,      -- self-reference exists, unused
+                 icon, color, archived, sort_order)
+expenses        (id, category_id,
+                 amount_minor,                   -- positive INTEGER cents
+                 note,
+                 spent_at,                       -- 'YYYY-MM-DD HH:MM:SS', indexed
+                 created_at, updated_at,
+                 import_batch_id NULL,           -- traceability for imported rows
+                 recurring_rule_id NULL)         -- set when a rule materialised it
+budgets         (id, category_id NULL,           -- NULL = overall budget
+                 amount_minor, period 'monthly'|'yearly', active)
+recurring_rules (id, category_id, amount_minor, note,
+                 frequency 'weekly'|'monthly'|'yearly', interval, anchor_day,
+                 next_due_on, end_on NULL, active)
+import_batches  (id, source, filename, row_count, imported_at)
+```
+
+Indexes on `expenses(spent_at)` and `(category_id)`.
+**Money is always INTEGER minor units — never floats.**
+
+## Screens
+
+| Tab | Purpose |
+|---|---|
+| Home | Period picker, KPI tiles, insights, spending chart, category breakdown, period comparison |
+| List | Search, filters, infinite scroll, long-press to edit, swipe to delete |
+| Add | Calculator keypad, category strip, note autocomplete, repeat-last |
+| Plan | Budgets with month-end forecast, recurring rules |
+| Data | Categories, CSV import with rollback, backups and export |
 
 ## Commands
 
@@ -53,11 +93,15 @@ See [PLAN.md](PLAN.md) for the full build plan and [plan/](plan/) for per-phase 
 
 ## Auth
 
-The app sits behind **Cloudflare Access** (Zero Trust, free tier), enabled via
-Workers & Pages → expense-tracker → Settings → Domains & Routes → ⋯ on the
-workers.dev row → Enable Cloudflare Access. Policy allows only my email.
-(workers.dev domains don't appear in the Zero Trust self-hosted app dropdown —
-the Workers-side toggle is the correct path.)
+The app sits behind **Cloudflare Access** (Zero Trust, free tier) as a
+self-hosted application with `expense.gosvindraj.com` as its only destination,
+policy allowing one email.
+
+The `*.workers.dev` hostname is disabled (`workers_dev: false`) so there is one
+route in, not two. If the custom domain is ever changed: add the new domain,
+verify it serves, *then* disable the old one — doing both in one deploy took the
+app offline, because the old hostname stopped routing before the new one had
+been created.
 
 Consequence: unauthenticated `curl` against production gets a 302 to the Access
 login — API verification must run against the local dev server.
