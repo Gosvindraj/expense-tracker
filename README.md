@@ -3,7 +3,7 @@
 Personal single-user expense tracker PWA on Cloudflare (Workers + D1 + React).
 See [PLAN.md](PLAN.md) for the full build plan and [plan/](plan/) for per-phase tasks.
 
-**Production:** https://expense-tracker.example.workers.dev
+**Production:** https://expense.gosvindraj.com
 
 ## Stack
 

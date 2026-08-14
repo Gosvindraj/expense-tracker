@@ -3,6 +3,18 @@
   "name": "expense-tracker",
   "main": "worker/index.ts",
   "compatibility_date": "2025-10-01",
+  // `custom_domain` makes Wrangler create the DNS record and provision the
+  // certificate on deploy — no manual DNS.
+  "routes": [{ "pattern": "expense.gosvindraj.com", "custom_domain": true }],
+  // Off now that expense.gosvindraj.com is confirmed serving behind Access.
+  // A custom domain does not retire the *.workers.dev hostname on its own —
+  // left enabled it is a second public route to the same data.
+  //
+  // Order matters if this is ever redone: add the custom domain, verify it,
+  // and only then disable this. Doing both in one deploy once took the app
+  // offline entirely — the old hostname stopped routing before the new one
+  // had been created.
+  "workers_dev": false,
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
