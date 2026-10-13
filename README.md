@@ -62,7 +62,7 @@ Indexes on `expenses(spent_at)` and `(category_id)`.
 | `npm run dev` | Dev server at http://localhost:5173 (frontend + worker + local D1) |
 | `npm run check` | Typecheck both the app and the worker |
 | `npm run build` | Production build to `dist/` |
-| `npm run deploy` | Typecheck + build + `wrangler deploy` |
+| `npm run deploy` | Typecheck + build + `wrangler deploy` (normally automatic: pushing to `main` deploys via Cloudflare Workers Builds) |
 | `npm run db:generate` | Generate SQL migration in `drizzle/` from `worker/db/schema.ts` |
 | `npm run db:migrate:local` | Apply migrations to the local dev D1 (`.wrangler/state`) |
 | `npm run db:migrate:remote` | Apply migrations to the production D1 |
@@ -89,7 +89,8 @@ Indexes on `expenses(spent_at)` and `(category_id)`.
 1. Edit `worker/db/schema.ts`
 2. `npm run db:generate`
 3. `npm run db:migrate:local` — dev server picks it up
-4. When deploying: `npm run db:migrate:remote` **before** `npm run deploy`
+4. When deploying: `npm run db:migrate:remote` **before** pushing to `main`
+   (a push deploys; the deploy doesn't migrate)
 
 ## Auth
 

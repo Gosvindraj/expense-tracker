@@ -68,8 +68,12 @@ Installed as a standalone PWA. Chrome on Windows will pass things iOS won't:
   typed phrase above 100 rows, and snapshots first. Don't soften that.
 - **Custom domain sequencing:** add the domain, verify it serves, *then* set
   `workers_dev: false`. Doing both in one deploy took the app offline.
-- **`npm run deploy` ships the working tree**, not what's on GitHub. There is no
-  CI. Committing is not deploying and deploying is not committing.
+- **Pushing to `main` deploys.** Cloudflare Workers Builds is connected to the
+  GitHub repo and runs the deploy on every push. `npm run deploy` still works
+  locally, but it ships the working tree, uncommitted edits included, and
+  leaves GitHub behind what's live.
+- **Deploys don't migrate D1.** Run `npm run db:migrate:remote` *before*
+  pushing a schema change, or the new code goes live against the old schema.
 - **Production is behind Access**, so `curl` against it gets a 302. Verify APIs
   against the local dev server.
 
