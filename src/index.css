@@ -644,6 +644,9 @@ input[type="datetime-local"] {
 
 .tabbar {
   position: relative;
+  /* above the sticky day headers (2), so the FAB overhang isn't painted under
+     them; below the composer overlay and sheets */
+  z-index: 3;
   display: flex;
   align-items: stretch;
   background: var(--surface-glass);
@@ -892,6 +895,10 @@ input[type="datetime-local"] {
   gap: var(--sp-2);
   margin-bottom: var(--sp-4);
   overflow-x: auto;
+  /* the chips' 44px hit-area overlay overhangs the strip; without this the
+     strip scrolls vertically too */
+  overflow-y: hidden;
+  touch-action: pan-x;
   scrollbar-width: none;
   padding: 2px 0;
   /* soft fade hinting there's more to scroll */
@@ -1494,6 +1501,12 @@ input[type="datetime-local"] {
   color: var(--on-red);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
+  /* only while a swipe is in progress — see setSwiping() in ExpenseRow */
+  visibility: hidden;
+}
+
+.swipe-row.swiping .swipe-behind {
+  visibility: visible;
 }
 
 .swipe-behind.armed {
@@ -1505,9 +1518,13 @@ input[type="datetime-local"] {
   background: var(--surface);
   /* no transform transition here: ExpenseRow sets it inline, on for the
      snap-back and off during the drag so the row tracks the finger exactly */
-  will-change: transform;
   /* the row itself must own horizontal gestures, not just its <li> */
   touch-action: pan-y;
+}
+
+/* a layer per row only while it's moving, not one for every row in the list */
+.swipe-row.swiping .row-btn {
+  will-change: transform;
 }
 
 .swipe-row .row-btn:active,

@@ -39,7 +39,9 @@ export default function ExpenseRow({
   const [armed, setArmed] = useState(false);
   const [pressing, setPressing] = useState(false);
 
+  const row = useRef<HTMLLIElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
+  const settle = useRef<number | undefined>(undefined);
   const start = useRef<{ x: number; y: number } | null>(null);
   const axis = useRef<"none" | "x" | "y">("none");
   const dx = useRef(0);
@@ -51,6 +53,17 @@ export default function ExpenseRow({
     if (!el) return;
     el.style.transition = animate ? "transform 0.18s ease-out" : "none";
     el.style.transform = x ? `translateX(${x}px)` : "";
+  };
+
+  // The red panel only exists while a swipe is in progress. Left painted behind
+  // every row, iOS momentum scrolling flashes it whenever a row's layer
+  // composites a frame late.
+  const setSwiping = (on: boolean, delay = 0) => {
+    clearTimeout(settle.current);
+    settle.current = undefined;
+    const apply = () => row.current?.classList.toggle("swiping", on);
+    if (delay) settle.current = window.setTimeout(apply, delay);
+    else apply();
   };
 
   const cancelLongPress = () => {
@@ -67,6 +80,8 @@ export default function ExpenseRow({
     start.current = null;
     setArmed(false);
     setX(0, animate);
+    // hold the panel until the snap-back has finished covering it
+    setSwiping(false, animate ? 180 : 0);
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
@@ -98,6 +113,7 @@ export default function ExpenseRow({
       cancelLongPress();
       // vertical wins ties: scrolling the list must never be hijacked
       axis.current = Math.abs(mx) > Math.abs(my) * AXIS_BIAS ? "x" : "y";
+      if (axis.current === "x") setSwiping(true);
     }
     if (axis.current !== "x") return;
 
@@ -126,7 +142,7 @@ export default function ExpenseRow({
   }
 
   return (
-    <li className="swipe-row">
+    <li ref={row} className="swipe-row">
       <span className={`swipe-behind ${armed ? "armed" : ""}`} aria-hidden="true">
         <Icon name="close" />
         {armed ? "Release to delete" : "Delete"}
